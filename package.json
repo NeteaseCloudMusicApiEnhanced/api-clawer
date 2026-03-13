@@ -1,6 +1,6 @@
 {
   "name": "api-clawer",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "网易云音乐客户端抓包工具",
   "main": "src/server/app.js",
   "scripts": {

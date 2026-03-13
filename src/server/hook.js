@@ -271,6 +271,7 @@ hook.request.after = (ctx) => {
 		proxyRes.statusCode === 200
 	)
 		proxyRes.statusCode = 206;
+	if (netease) {
 		return request
 			.read(proxyRes, true)
 			.then((buffer) =>
