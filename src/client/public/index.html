@@ -324,6 +324,94 @@
     .clear-btn:active {
       transform: scale(0.98);
     }
+
+    .modal-overlay {
+      position: fixed;
+      top: 0;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      background: rgba(0, 0, 0, 0.5);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      z-index: 1000;
+      opacity: 0;
+      visibility: hidden;
+      transition: all 0.3s;
+    }
+
+    .modal-overlay.show {
+      opacity: 1;
+      visibility: visible;
+    }
+
+    .modal {
+      background: white;
+      border-radius: 8px;
+      padding: 24px;
+      min-width: 320px;
+      max-width: 400px;
+      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+      transform: scale(0.95);
+      transition: transform 0.3s;
+    }
+
+    .modal-overlay.show .modal {
+      transform: scale(1);
+    }
+
+    .modal h3 {
+      margin: 0 0 12px 0;
+      font-size: 18px;
+      font-weight: 600;
+      color: var(--fg);
+    }
+
+    .modal p {
+      margin: 0 0 20px 0;
+      font-size: 14px;
+      color: var(--muted);
+      line-height: 1.5;
+    }
+
+    .modal-buttons {
+      display: flex;
+      gap: 10px;
+      justify-content: flex-end;
+    }
+
+    .modal-btn {
+      padding: 8px 16px;
+      border: none;
+      border-radius: 4px;
+      font-size: 14px;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+
+    .modal-btn-cancel {
+      background: #f5f5f5;
+      color: var(--fg);
+      border: 1px solid var(--border);
+    }
+
+    .modal-btn-cancel:hover {
+      background: #e0e0e0;
+    }
+
+    .modal-btn-confirm {
+      background: var(--accent);
+      color: white;
+    }
+
+    .modal-btn-confirm:hover {
+      background: #a00a0a;
+    }
+
+    .modal-btn:active {
+      transform: scale(0.98);
+    }
   </style>
 </head>
 <body>
@@ -370,6 +458,17 @@
   </div>
 
   <div id="toast" class="toast">已复制到剪贴板</div>
+
+  <div id="modal-overlay" class="modal-overlay">
+    <div class="modal">
+      <h3 id="modal-title">确认操作</h3>
+      <p id="modal-message">确定要执行此操作吗？</p>
+      <div class="modal-buttons">
+        <button class="modal-btn modal-btn-cancel" onclick="closeModal()">取消</button>
+        <button class="modal-btn modal-btn-confirm" id="modal-confirm-btn">确定</button>
+      </div>
+    </div>
+  </div>
 
   <script>
     let capturedData = [];
@@ -524,44 +623,80 @@
         });
     }
 
+    function showConfirm(title, message, onConfirm) {
+      const overlay = document.getElementById('modal-overlay');
+      const titleEl = document.getElementById('modal-title');
+      const messageEl = document.getElementById('modal-message');
+      const confirmBtn = document.getElementById('modal-confirm-btn');
+      
+      titleEl.textContent = title;
+      messageEl.textContent = message;
+      
+      // 移除之前的事件监听器
+      const newConfirmBtn = confirmBtn.cloneNode(true);
+      confirmBtn.parentNode.replaceChild(newConfirmBtn, confirmBtn);
+      
+      // 添加新的事件监听器
+      newConfirmBtn.addEventListener('click', () => {
+        closeModal();
+        if (onConfirm) {
+          onConfirm();
+        }
+      });
+      
+      overlay.classList.add('show');
+    }
+
+    function closeModal() {
+      document.getElementById('modal-overlay').classList.remove('show');
+    }
+
+    // 点击遮罩层关闭模态框
+    document.getElementById('modal-overlay').addEventListener('click', (e) => {
+      if (e.target.id === 'modal-overlay') {
+        closeModal();
+      }
+    });
+
     function clearCaptures() {
       if (!capturedData || capturedData.length === 0) {
         showToast('暂无抓包数据可清空');
         return;
       }
       
-      if (!confirm('确定要清空所有抓包信息吗？')) {
-        return;
-      }
-      
-      capturedData = [];
-      selectedIndex = -1;
-      renderCaptureList();
-      
-      // 重置右侧详情面板
-      const detailPanel = document.getElementById('detail-panel');
-      detailPanel.innerHTML = `
-        <div class="no-selection">
-          <span class="icon">📡</span>
-          <span>请从左侧选择一个抓包记录查看详情</span>
-        </div>
-      `;
-      
-      // 向服务器发送清空请求
-      fetch('/api/clear', { method: 'POST' })
-        .then(response => response.json())
-        .then(data => {
-          if (data.success) {
-            showToast('已清空所有抓包信息');
-          } else {
-            showToast('清空失败: ' + (data.message || '未知错误'));
-          }
-          showToast('已清空所有抓包信息');
-        })
-        .catch(err => {
-          console.error('Clear failed:', err);
-          showToast('清空失败，请重试');
-        });
+      showConfirm(
+        '清空抓包数据',
+        '确定要清空所有抓包信息吗？此操作不可撤销。',
+        () => {
+          capturedData = [];
+          selectedIndex = -1;
+          renderCaptureList();
+          
+          // 重置右侧详情面板
+          const detailPanel = document.getElementById('detail-panel');
+          detailPanel.innerHTML = `
+            <div class="no-selection">
+              <span class="icon">📡</span>
+              <span>请从左侧选择一个抓包记录查看详情</span>
+            </div>
+          `;
+          
+          // 向服务器发送清空请求
+          fetch('/api/clear', { method: 'POST' })
+            .then(response => response.json())
+            .then(data => {
+              if (data.success) {
+                showToast('已清空所有抓包信息');
+              } else {
+                showToast('清空失败: ' + (data.message || '未知错误'));
+              }
+            })
+            .catch(err => {
+              console.error('Clear failed:', err);
+              showToast('清空失败，请重试');
+            });
+        }
+      );
     }
 
     function setupSSE() {
