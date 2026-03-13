@@ -301,13 +301,36 @@
       opacity: 1;
       transform: translateY(0);
     }
+    
+    .clear-btn {
+      display: inline-block;
+      padding: 4px 10px;
+      background: #f5f5f5;
+      color: var(--muted);
+      border: 1px solid var(--border);
+      border-radius: 4px;
+      font-size: 12px;
+      cursor: pointer;
+      transition: all 0.2s;
+      margin-left: 8px;
+    }
+    
+    .clear-btn:hover {
+      background: var(--accent);
+      color: white;
+      border-color: var(--accent);
+    }
+    
+    .clear-btn:active {
+      transform: scale(0.98);
+    }
   </style>
 </head>
 <body>
   <div class="main-container">
     <div class="left-panel">
       <div class="header">
-        <h1>网易云音乐抓包工具 <span class="badge">v0.1.0</span></h1>
+        <h1>网易云音乐抓包工具 <span class="badge" id="version-badge">加载中...</span></h1>
         <p class="sub">🔍 简易网易云音乐客户端抓包工具</p>
       </div>
       <div class="left-content">
@@ -330,7 +353,7 @@
         </section>
 
         <div class="capture-list">
-          <h2>抓包列表</h2>
+          <h2>抓包列表 <button class="clear-btn" onclick="clearCaptures()">清空</button></h2>
           <div id="capture-list"></div>
         </div>
       </div>
@@ -485,6 +508,62 @@
       return div.innerHTML;
     }
 
+    function fetchVersion() {
+      fetch('/api/version')
+        .then(response => response.json())
+        .then(data => {
+          if (data.version) {
+            document.getElementById('version-badge').textContent = 'v' + data.version;
+          } else {
+            document.getElementById('version-badge').textContent = 'v0.1.0';
+          }
+        })
+        .catch(err => {
+          console.error('Failed to fetch version:', err);
+          document.getElementById('version-badge').textContent = 'v0.1.0';
+        });
+    }
+
+    function clearCaptures() {
+      if (!capturedData || capturedData.length === 0) {
+        showToast('暂无抓包数据可清空');
+        return;
+      }
+      
+      if (!confirm('确定要清空所有抓包信息吗？')) {
+        return;
+      }
+      
+      capturedData = [];
+      selectedIndex = -1;
+      renderCaptureList();
+      
+      // 重置右侧详情面板
+      const detailPanel = document.getElementById('detail-panel');
+      detailPanel.innerHTML = `
+        <div class="no-selection">
+          <span class="icon">📡</span>
+          <span>请从左侧选择一个抓包记录查看详情</span>
+        </div>
+      `;
+      
+      // 向服务器发送清空请求
+      fetch('/api/clear', { method: 'POST' })
+        .then(response => response.json())
+        .then(data => {
+          if (data.success) {
+            showToast('已清空所有抓包信息');
+          } else {
+            showToast('清空失败: ' + (data.message || '未知错误'));
+          }
+          showToast('已清空所有抓包信息');
+        })
+        .catch(err => {
+          console.error('Clear failed:', err);
+          showToast('清空失败，请重试');
+        });
+    }
+
     function setupSSE() {
       const eventSource = new EventSource('/api/events');
       
@@ -495,20 +574,25 @@
           // 更新状态为已连接
           updateStatus();
           
-          // 检查是否有新数据（比较最后一个时间戳或数量）
-          const hasNewData = !capturedData.length || 
-                            data.length > capturedData.length ||
-                            (data.length > 0 && capturedData.length > 0 && 
-                             data[data.length - 1].timestamp !== capturedData[capturedData.length - 1].timestamp);
+          // 直接使用服务器返回的数据
+          capturedData = data;
+          renderCaptureList();
           
-          if (hasNewData) {
-            capturedData = data;
-            renderCaptureList();
-            
-            // 如果是新数据且当前没有选中，自动选中第一个
-            if (selectedIndex === -1 && data.length > 0) {
-              selectCapture(0);
-            }
+          // 如果当前没有选中且数据不为空，自动选中第一个
+          if (selectedIndex === -1 && data.length > 0) {
+            selectCapture(0);
+          }
+          
+          // 如果选中的索引超出了数据范围，重置选中状态
+          if (selectedIndex >= data.length) {
+            selectedIndex = -1;
+            const detailPanel = document.getElementById('detail-panel');
+            detailPanel.innerHTML = `
+              <div class="no-selection">
+                <span class="icon">📡</span>
+                <span>请从左侧选择一个抓包记录查看详情</span>
+              </div>
+            `;
           }
         } catch (e) {
           console.error('Failed to parse SSE data:', e);
@@ -523,6 +607,9 @@
     document.addEventListener('DOMContentLoaded', function () {
       var origin = window.location.origin;
       document.getElementById('base-url').textContent = origin;
+
+      // 获取版本信息
+      fetchVersion();
 
       // 设置 SSE 连接
       setupSSE();

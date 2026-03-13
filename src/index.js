@@ -143,6 +143,22 @@ const startClient = () => {
       res.json(capturedData);
     });
 
+    app.get('/api/version', (req, res) => {
+      try {
+        const packageJson = require('../package.json');
+        res.json({ version: packageJson.version });
+      } catch (error) {
+        console.error('Failed to read package.json:', error);
+        res.json({ version: '0.1.0' });
+      }
+    });
+
+    app.post('/api/clear', (req, res) => {
+      capturedData = [];
+      broadcastData();
+      res.json({ success: true });
+    });
+
     app.get('/api/events', (req, res) => {
       res.setHeader('Content-Type', 'text/event-stream');
       res.setHeader('Cache-Control', 'no-cache');

@@ -26,6 +26,24 @@ app.get('/api/data', (req, res) => {
   res.json(capturedData);
 });
 
+// 版本信息端点
+app.get('/api/version', (req, res) => {
+  try {
+    const packageJson = require('../../package.json');
+    res.json({ version: packageJson.version });
+  } catch (error) {
+    console.error('Failed to read package.json:', error);
+    res.json({ version: '0.1.0' });
+  }
+});
+
+// 清空数据端点
+app.post('/api/clear', (req, res) => {
+  capturedData = [];
+  broadcastData();
+  res.json({ success: true });
+});
+
 // SSE 端点
 app.get('/api/events', (req, res) => {
   res.setHeader('Content-Type', 'text/event-stream');
