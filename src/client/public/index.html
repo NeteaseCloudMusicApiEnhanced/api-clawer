@@ -1,0 +1,205 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta http-equiv="X-UA-Compatible" content="IE=edge">
+  <title>网易云音乐抓包工具</title>
+  <style>
+    :root {
+      --fg: #333;
+      --muted: #666;
+      --border: #ddd;
+      --bg: #f5f5f5;
+      --panel: #ffffff;
+      --accent: #C20C0C;
+    }
+    * { box-sizing: border-box; }
+    html, body { height: 100%; }
+    body { margin: 0; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; color: var(--fg); background: var(--bg); line-height: 1.6; }
+    .container { max-width: 960px; margin: 40px auto; padding: 0 20px; }
+    @media (max-width: 480px) {
+      .container { margin: 20px auto; padding: 0 16px; }
+      header.site-header h1 { font-size: 22px; }
+      .block { padding: 16px; }
+    }
+    header.site-header { margin-bottom: 24px; }
+    header.site-header h1 { font-size: 28px; font-weight: 600; margin: 0; color: var(--accent); }
+    .badge { display: inline-block; margin-left: 8px; padding: 4px 10px; border: 1px solid var(--border); border-radius: 12px; font-size: 12px; color: var(--muted); }
+    .sub { margin-top: 8px; color: var(--muted); font-size: 14px; }
+    .block { background: var(--panel); border: 1px solid var(--border); border-radius: 12px; padding: 20px; margin-bottom: 16px; box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05); }
+    .block h2 { margin: 0 0 12px; font-size: 18px; font-weight: 600; }
+    .kvs { display: grid; grid-template-columns: 100px 1fr; gap: 8px 12px; align-items: start; }
+    .kvs div:first-child { color: var(--muted); flex-shrink: 0; }
+    .kvs div:last-child { word-break: break-all; overflow-wrap: anywhere; min-width: 0; overflow: hidden; }
+    @media (max-width: 480px) {
+      .kvs { grid-template-columns: 1fr; gap: 4px 12px; }
+      .kvs div:first-child { font-weight: 500; }
+    }
+    .capture-item { border: 1px solid var(--border); border-radius: 8px; margin-bottom: 12px; overflow: hidden; }
+    .capture-header { background: #fafafa; padding: 12px 16px; border-bottom: 1px solid var(--border); display: flex; justify-content: space-between; align-items: center; }
+    .capture-path { font-weight: 600; color: var(--accent); }
+    .capture-time { font-size: 12px; color: var(--muted); }
+    .capture-body { padding: 16px; }
+    .capture-section { margin-bottom: 12px; }
+    .capture-section:last-child { margin-bottom: 0; }
+    .capture-section strong { display: block; margin-bottom: 6px; font-size: 14px; color: var(--muted); }
+    pre { margin: 0; background: #f9f9f9; border: 1px solid var(--border); border-radius: 6px; padding: 12px; overflow-x: auto; white-space: pre-wrap; word-break: break-all; font-size: 13px; }
+    code { font-family: 'Courier New', monospace; font-size: 13px; }
+    @media (max-width: 480px) {
+      code { font-size: 12px; }
+    }
+    .status { display: inline-block; padding: 4px 8px; border-radius: 4px; font-size: 12px; font-weight: 500; }
+    .status-connected { background: #e6f4ea; color: #1e8e3e; }
+    .status-waiting { background: #fef7e0; color: #f9ab00; }
+    .no-data { text-align: center; padding: 40px 20px; color: var(--muted); }
+    .no-data .icon { font-size: 48px; margin-bottom: 12px; opacity: 0.5; }
+    footer.site-footer { margin-top: 24px; padding-top: 12px; border-top: 1px solid var(--border); color: var(--muted); text-align: center; }
+    footer.site-footer a { color: var(--fg); text-decoration: none; transition: color 0.2s ease; }
+    footer.site-footer a:hover { color: var(--accent); }
+  </style>
+</head>
+<body>
+  <main class="container">
+    <header class="site-header">
+      <h1>网易云音乐抓包工具 <span class="badge">v0.0.1</span></h1>
+      <p class="sub">🔍 简易网易云音乐客户端抓包工具，适用于贡献 NeteaseCloudMusicApi 项目</p>
+    </header>
+
+    <section class="block">
+      <h2>状态</h2>
+      <div class="kvs">
+        <div>连接状态</div><div><span id="status" class="status status-waiting">等待连接...</span></div>
+        <div>Base URL</div><div id="base-url">—</div>
+        <div>当前页</div><div id="current-url">—</div>
+        <div>抓包数量</div><div id="capture-count">0</div>
+      </div>
+    </section>
+
+    <section class="block">
+      <h2>使用说明</h2>
+      <div class="kvs">
+        <div>1. 启动服务</div><div>运行 <code>npm run dev</code> 启动抓包和前端服务</div>
+        <div>2. 设置代理</div><div>将网易云音乐客户端代理设置为 <code>http://localhost:9000</code></div>
+        <div>3. 开始抓包</div><div>在网易云音乐客户端中进行操作，抓包数据将实时显示</div>
+      </div>
+    </section>
+
+    <section class="block">
+      <h2>抓包数据</h2>
+      <div id="data">
+        <div class="no-data">
+          <div class="icon">📡</div>
+          <p>暂无抓包数据</p>
+          <p style="font-size: 12px; margin-top: 8px;">请设置网易云音乐客户端代理并开始使用</p>
+        </div>
+      </div>
+    </section>
+
+    <footer class="site-footer">
+      <a href="https://github.com/NeteaseCloudMusicApiEnhanced/api-clawer" target="_blank">GitHub</a>
+    </footer>
+  </main>
+
+  <script>
+    const DATA_ENDPOINT = '/api/data';
+    let lastDataCount = 0;
+
+    function updateStatus() {
+      const statusEl = document.getElementById('status');
+      statusEl.className = 'status status-connected';
+      statusEl.textContent = '已连接';
+    }
+
+    function displayData(data) {
+      const container = document.getElementById('data');
+      const countEl = document.getElementById('capture-count');
+
+      if (!data || data.length === 0) {
+        container.innerHTML = `
+          <div class="no-data">
+            <div class="icon">📡</div>
+            <p>暂无抓包数据</p>
+            <p style="font-size: 12px; margin-top: 8px;">请设置网易云音乐客户端代理并开始使用</p>
+          </div>
+        `;
+        countEl.textContent = '0';
+        return;
+      }
+
+      // 如果是新数据，更新显示
+      if (data.length !== lastDataCount) {
+        lastDataCount = data.length;
+        countEl.textContent = data.length;
+
+        container.innerHTML = data.map(item => `
+          <div class="capture-item">
+            <div class="capture-header">
+              <span class="capture-path">${escapeHtml(item.path)}</span>
+              <span class="capture-time">${formatTime(item.timestamp)}</span>
+            </div>
+            <div class="capture-body">
+              <div class="capture-section">
+                <strong>请求参数:</strong>
+                <pre><code>${formatJson(item.param)}</code></pre>
+              </div>
+              ${item.response ? `
+                <div class="capture-section">
+                  <strong>响应数据:</strong>
+                  <pre><code>${formatJson(item.response)}</code></pre>
+                </div>
+              ` : ''}
+            </div>
+          </div>
+        `).join('');
+      }
+    }
+
+    async function fetchData() {
+      try {
+        const response = await fetch(DATA_ENDPOINT);
+        const data = await response.json();
+        displayData(data);
+        updateStatus();
+      } catch (error) {
+        console.error('Error fetching data:', error);
+      }
+    }
+
+    function formatJson(obj) {
+      try {
+        return JSON.stringify(obj, null, 2);
+      } catch (e) {
+        return String(obj);
+      }
+    }
+
+    function formatTime(timestamp) {
+      try {
+        const date = new Date(timestamp);
+        return date.toLocaleTimeString('zh-CN', { hour12: false });
+      } catch (e) {
+        return timestamp;
+      }
+    }
+
+    function escapeHtml(text) {
+      const div = document.createElement('div');
+      div.textContent = text;
+      return div.innerHTML;
+    }
+
+    document.addEventListener('DOMContentLoaded', function () {
+      var origin = window.location.origin;
+      document.getElementById('base-url').textContent = origin;
+      document.getElementById('current-url').textContent = window.location.href;
+
+      // 初始加载
+      fetchData();
+
+      // 每秒刷新数据
+      setInterval(fetchData, 1000);
+    });
+  </script>
+</body>
+</html>
