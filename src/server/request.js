@@ -1,8 +1,6 @@
 const zlib = require('zlib');
 const http = require('http');
 const https = require('https');
-const ON_CANCEL = require('./cancel');
-const RequestCancelled = require('./exceptions/RequestCancelled');
 const { logScope } = require('./logger');
 const parse = require('url').parse;
 const format = require('url').format;
@@ -62,7 +60,7 @@ const configure = (method, url, headers, proxy) => {
 
 /**
  * @template T
- * @typedef {{url: string, body: RequestExtensionBody, json: () => Promise<T>, jsonp: () => Promise<T>}} RequestExtension
+ * @typedef {{url: string, body: RequestExtensionBody, json: () => Promise<T>}} RequestExtension
  */
 
 /**
@@ -72,7 +70,6 @@ const configure = (method, url, headers, proxy) => {
  * @param {Object?} receivedHeaders
  * @param {unknown?} body
  * @param {unknown?} proxy
- * @param {CancelRequest?} cancelRequest
  * @return {Promise<http.IncomingMessage & RequestExtension<T>>}
  */
 const request = (
@@ -80,8 +77,7 @@ const request = (
 	receivedUrl,
 	receivedHeaders,
 	body,
-	proxy,
-	cancelRequest
+	proxy
 ) => {
 	const url = parse(receivedUrl);
 	/* @type {Partial<Record<string,string>>} */
@@ -105,14 +101,6 @@ const request = (
 		logger.debug(`Start requesting ${receivedUrl}`);
 
 		const clientRequest = create(url, proxy)(options);
-		const destroyClientRequest = function () {
-			// We destroy the request and throw RequestCancelled
-			// when the request has been cancelled.
-			clientRequest.destroy(new RequestCancelled(format(url)));
-		};
-
-		cancelRequest?.on(ON_CANCEL, destroyClientRequest);
-		if (cancelRequest?.cancelled ?? false) destroyClientRequest();
 
 		clientRequest
 			.setTimeout(timeoutThreshold, () => {
@@ -122,7 +110,7 @@ const request = (
 					},
 					`The request timed out, or the requester didn't handle the response.`
 				);
-				destroyClientRequest();
+				clientRequest.destroy();
 			})
 			.on('response', (response) => resolve(response))
 			.on('connect', (_, socket) => {
@@ -146,9 +134,6 @@ const request = (
 	}).then(
 		/** @param {http.IncomingMessage} response */
 		(response) => {
-			if (cancelRequest?.cancelled ?? false)
-				return Promise.reject(new RequestCancelled(format(url)));
-
 			if ([201, 301, 302, 303, 307, 308].includes(response.statusCode)) {
 				const redirectTo = url.resolve(
 					response.headers.location || url.href
@@ -163,7 +148,6 @@ const request = (
 				url,
 				body: (raw) => read(response, raw),
 				json: () => json(response),
-				jsonp: () => jsonp(response),
 			});
 		}
 	);
@@ -192,10 +176,6 @@ const read = (connect, raw) =>
 	});
 
 const json = (connect) => read(connect, false).then((body) => JSON.parse(body));
-const jsonp = (connect) =>
-	read(connect, false).then((body) =>
-		JSON.parse(body.slice(body.indexOf('(') + 1, -')'.length))
-	);
 
 request.read = read;
 request.create = create;
