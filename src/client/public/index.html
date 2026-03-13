@@ -307,7 +307,7 @@
   <div class="main-container">
     <div class="left-panel">
       <div class="header">
-        <h1>网易云音乐抓包工具 <span class="badge">v0.0.1</span></h1>
+        <h1>网易云音乐抓包工具 <span class="badge">v0.1.0</span></h1>
         <p class="sub">🔍 简易网易云音乐客户端抓包工具</p>
       </div>
       <div class="left-content">
@@ -489,20 +489,29 @@
       const eventSource = new EventSource('/api/events');
       
       eventSource.onmessage = function(event) {
-        const data = JSON.parse(event.data);
-        
-        // 更新状态为已连接
-        updateStatus();
-        
-        // 检查是否有新数据
-        if (data.length !== capturedData.length) {
-          capturedData = data;
-          renderCaptureList();
+        try {
+          const data = JSON.parse(event.data);
           
-          // 如果是新数据且当前没有选中，自动选中第一个
-          if (selectedIndex === -1 && data.length > 0) {
-            selectCapture(0);
+          // 更新状态为已连接
+          updateStatus();
+          
+          // 检查是否有新数据（比较最后一个时间戳或数量）
+          const hasNewData = !capturedData.length || 
+                            data.length > capturedData.length ||
+                            (data.length > 0 && capturedData.length > 0 && 
+                             data[data.length - 1].timestamp !== capturedData[capturedData.length - 1].timestamp);
+          
+          if (hasNewData) {
+            capturedData = data;
+            renderCaptureList();
+            
+            // 如果是新数据且当前没有选中，自动选中第一个
+            if (selectedIndex === -1 && data.length > 0) {
+              selectCapture(0);
+            }
           }
+        } catch (e) {
+          console.error('Failed to parse SSE data:', e);
         }
       };
       

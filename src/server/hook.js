@@ -271,11 +271,6 @@ hook.request.after = (ctx) => {
 		proxyRes.statusCode === 200
 	)
 		proxyRes.statusCode = 206;
-	if (
-		netease &&
-		hook.target.path.has(netease.path) &&
-		proxyRes.statusCode === 200
-	) {
 		return request
 			.read(proxyRes, true)
 			.then((buffer) =>
@@ -297,24 +292,37 @@ hook.request.after = (ctx) => {
 					netease.jsonBody = JSON.parse(patch(buffer.toString()));
 				}
 
-				// Send data to frontend
+				// Send data to frontend for all captured requests
 				const dataToSend = {
 					timestamp: new Date().toISOString(),
 					path: netease.path,
 					param: netease.param,
-					response: netease.jsonBody
+					response: netease.jsonBody,
+					statusCode: proxyRes.statusCode
 				};
 				axios.post(`http://localhost:${process.env.PORT || 3000}/api/capture`, dataToSend)
 					.catch(err => logger.error('Failed to send data to frontend:', err));
 			})
-			.catch(
-				(error) =>
-					error &&
+			.catch((error) => {
+				// 即使读取响应体失败，也发送基本信息到前端
+				const dataToSend = {
+					timestamp: new Date().toISOString(),
+					path: netease.path,
+					param: netease.param,
+					response: null,
+					statusCode: proxyRes.statusCode,
+					error: error.message
+				};
+				axios.post(`http://localhost:${process.env.PORT || 3000}/api/capture`, dataToSend)
+					.catch(err => logger.error('Failed to send data to frontend:', err));
+				
+				if (error) {
 					logger.error(
 						error,
 						`A error occurred in hook.request.after when hooking ${req.url}.`
-					)
-			);
+					);
+				}
+			});
 	} else if (pkg) {
 		if (new Set([201, 301, 302, 303, 307, 308]).has(proxyRes.statusCode)) {
 			return request(

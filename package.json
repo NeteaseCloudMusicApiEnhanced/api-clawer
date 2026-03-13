@@ -1,12 +1,10 @@
 {
   "name": "api-clawer",
-  "version": "0.0.1",
+  "version": "0.1.0",
   "description": "网易云音乐客户端抓包工具",
   "main": "src/server/app.js",
   "scripts": {
-    "dev": "concurrently \"node src/server/app.js\" \"node src/client/app.js\"",
-    "start": "concurrently \"node src/server/app.js\" \"node src/client/app.js\"",
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "start": "node src/index.js"
   },
   "keywords": ["netease", "music", "api", "clawer"],
   "author": "",
