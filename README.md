@@ -2,6 +2,10 @@
 
 简易网易云音乐客户端抓包工具, 适用于贡献 NeteaseCloudMusicApi 项目
 
+## 使用方法 (重要)
+
+请参考[这篇文章](https://www.focalors.ltd/post/how-to-contribute-ncm-api)获取详细的使用说明和配置指南。
+
 ## 功能
 
 - 抓取并输出网易云音乐客户端的 HTTP 请求和响应数据
@@ -45,13 +49,7 @@ node generate-cert.js
 
 ## 运行
 
-开发模式：
-
-```bash
-pnpm run dev
-```
-
-生产模式：
+运行以下命令：
 
 ```bash
 pnpm start
@@ -61,7 +59,7 @@ pnpm start
 
 1. **启动服务器**
 
-   运行 `pnpm run dev`，将启动两个服务：
+   运行 `pnpm start`，将启动两个服务：
    - 前端服务器：`http://localhost:3000`
    - 抓包代理服务器：`http://localhost:9000`
 
