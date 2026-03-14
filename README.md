@@ -4,7 +4,7 @@
 
 ## 使用方法 (重要)
 
-请参考[这篇文章](https://www.focalors.ltd/post/how-to-contribute-ncm-api)获取详细的使用说明和配置指南。
+请参考[这篇文章](https://www.focalors.ltd/post/how-to-contribute-ncm-api)或者[视频教程](https://www.bilibili.com/video/BV1xKw8zmEZy/?share_source=copy_web&vd_source=c7c071c7c94a843b977a99f6e4897ec4)获取详细的使用说明和配置指南。
 
 ## 功能
 
