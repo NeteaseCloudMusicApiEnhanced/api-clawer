@@ -6,17 +6,22 @@
   "scripts": {
     "start": "node src/index.js"
   },
-  "keywords": ["netease", "music", "api", "clawer"],
+  "keywords": [
+    "netease",
+    "music",
+    "api",
+    "clawer"
+  ],
   "author": "",
   "license": "MIT",
   "packageManager": "pnpm@10.28.1",
   "dependencies": {
-    "express": "^4.18.2",
-    "dotenv": "^16.3.1",
-    "ws": "^8.14.2",
-    "axios": "^1.6.2",
+    "axios": "^1.14.0",
     "concurrently": "^8.2.2",
+    "dotenv": "^16.6.1",
+    "express": "^4.22.1",
     "pino": "^6.14.0",
-    "pino-pretty": "^7.6.1"
+    "pino-pretty": "^7.6.1",
+    "ws": "^8.20.0"
   }
 }
