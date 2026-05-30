@@ -6,6 +6,7 @@ const bodyify = require('querystring').stringify;
 
 const eapiKey = 'e82ckenh8dichen8';
 const linuxapiKey = 'rFgB&h#%2?^eDg:Q';
+const xeapiKey = '723f08a8d77c4a3698a9722b71b3607b';
 
 const decrypt = (buffer, key) => {
 	const decipher = crypto.createDecipheriv('aes-128-ecb', key, null);
@@ -34,6 +35,29 @@ module.exports = {
 				url: url.href.replace(/\w*api/, 'eapi'),
 				body: bodyify({
 					params: module.exports.eapi
+						.encrypt(Buffer.from(data))
+						.toString('hex')
+						.toUpperCase(),
+				}),
+			};
+		},
+	},
+	xeapi: {
+		encrypt: (buffer) => encrypt(buffer, xeapiKey),
+		decrypt: (buffer) => decrypt(buffer, xeapiKey),
+		encryptRequest: (url, object) => {
+			url = parse(url);
+			const text = JSON.stringify(object);
+			const message = `nobody${url.path}use${text}md5forencrypt`;
+			const digest = crypto
+				.createHash('md5')
+				.update(message)
+				.digest('hex');
+			const data = `${url.path}-36cd479b6b5-${text}-36cd479b6b5-${digest}`;
+			return {
+				url: url.href.replace(/\w*api/, 'xeapi'),
+				body: bodyify({
+					params: module.exports.xeapi
 						.encrypt(Buffer.from(data))
 						.toString('hex')
 						.toUpperCase(),

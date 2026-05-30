@@ -133,6 +133,7 @@ hook.request.before = (ctx) => {
 		) &&
 		req.method === 'POST' &&
 		(url.path.startsWith('/eapi/') || // eapi
+			url.path.startsWith('/xeapi/') || // xeapi
 			url.path.startsWith('/api/linux/forward')) // linuxapi
 	) {
 		return request
@@ -157,6 +158,8 @@ hook.request.before = (ctx) => {
 						netease.crypto = 'linuxapi';
 					} else if (url.path.startsWith('/eapi/')) {
 						netease.crypto = 'eapi';
+					} else if (url.path.startsWith('/xeapi/')) {
+						netease.crypto = 'xeapi';
 					} else if (url.path.startsWith('/api/')) {
 						netease.crypto = 'api';
 					}
@@ -181,6 +184,32 @@ hook.request.before = (ctx) => {
 						break;
 						case 'eapi':
 							data = crypto.eapi
+								.decrypt(
+									Buffer.from(
+										body.slice(
+											7,
+											body.length - netease.pad.length
+										),
+										'hex'
+									)
+							)
+							.toString()
+								.split('-36cd479b6b5-');
+						netease.path = data[0];
+						netease.param = JSON.parse(data[1]);
+						if (
+							netease.param.hasOwnProperty('e_r') &&
+							(netease.param.e_r == 'true' ||
+								netease.param.e_r == true)
+						) {
+							// eapi's e_r is true, needs to be encrypted
+							netease.e_r = true;
+						} else {
+							netease.e_r = false;
+						}
+						break;
+						case 'xeapi':
+							data = crypto.xeapi
 								.decrypt(
 									Buffer.from(
 										body.slice(
@@ -285,9 +314,10 @@ hook.request.after = (ctx) => {
 					); // for js precision
 
 				if (netease.e_r) {
-					// eapi's e_r is true, needs to be encrypted
+					// e_r is true, response body is encrypted
+					const decryptCrypto = netease.crypto === 'xeapi' ? crypto.xeapi : crypto.eapi;
 					netease.jsonBody = JSON.parse(
-						patch(crypto.eapi.decrypt(buffer).toString())
+						patch(decryptCrypto.decrypt(buffer).toString())
 					);
 				} else {
 					netease.jsonBody = JSON.parse(patch(buffer.toString()));
