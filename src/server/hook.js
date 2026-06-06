@@ -363,6 +363,8 @@ hook.request.after = (ctx) => {
 			.then((buffer) => {
 				if (!buffer.length) return Promise.reject();
 				proxyRes.body = buffer;
+				// 🔧 移除 Content-Encoding 头，因为响应体已经被解压
+				delete proxyRes.headers['content-encoding'];
 				return buffer; // 继续传递 buffer
 			})
 			.then((buffer) => {
