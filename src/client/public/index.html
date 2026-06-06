@@ -412,6 +412,25 @@
     .modal-btn:active {
       transform: scale(0.98);
     }
+
+    /* === 加密类型标签样式 === */
+    .crypto-badge {
+      display: inline-block;
+      padding: 2px 8px;
+      border-radius: 4px;
+      font-size: 11px;
+      font-weight: 600;
+      letter-spacing: 0.3px;
+      margin-left: 6px;
+      vertical-align: middle;
+      line-height: 1.5;
+    }
+    .crypto-badge-eapi   { background: #fce4e4; color: #C20C0C; border: 1px solid #f5c6c6; }
+    .crypto-badge-xeapi  { background: #fef0db; color: #d35400; border: 1px solid #fde2b6; }
+    .crypto-badge-linuxapi { background: #dbeafe; color: #1a56db; border: 1px solid #bdd9fc; }
+    .crypto-badge-weapi  { background: #d4edda; color: #1e7e34; border: 1px solid #b8dfc6; }
+    .crypto-badge-api    { background: #e9ecef; color: #495057; border: 1px solid #ced4da; }
+    .crypto-badge-unknown { background: #f8f9fa; color: #adb5bd; border: 1px solid #dee2e6; }
   </style>
 </head>
 <body>
@@ -498,13 +517,16 @@
 
       countEl.textContent = capturedData.length;
       
-      container.innerHTML = capturedData.map((item, index) => `
-        <div class="capture-list-item ${index === selectedIndex ? 'active' : ''}" 
-             onclick="selectCapture(${index})">
-          <div class="capture-list-path">${escapeHtml(item.path)}</div>
-          <div class="capture-list-time">${formatTime(item.timestamp)}</div>
-        </div>
-      `).join('');
+      container.innerHTML = capturedData.map((item, index) => {
+        const cryptoLabel = item.crypto ? getCryptoLabel(item.crypto) : '';
+        return `
+          <div class="capture-list-item ${index === selectedIndex ? 'active' : ''}" 
+               onclick="selectCapture(${index})">
+            <div class="capture-list-path">${escapeHtml(item.path)} ${cryptoLabel}</div>
+            <div class="capture-list-time">${formatTime(item.timestamp)}</div>
+          </div>
+        `;
+      }).join('');
     }
 
     function selectCapture(index) {
@@ -524,11 +546,14 @@
       }
 
       const filteredParam = filterParam(item.param);
+      const cryptoLabel = item.crypto ? getCryptoLabel(item.crypto) : '';
+      const cryptoName = item.crypto ? getCryptoName(item.crypto) : '';
       
       detailPanel.innerHTML = `
         <div class="detail-header">
           <h2>${escapeHtml(item.path)}</h2>
-          <div class="detail-time">${formatTime(item.timestamp)}</div>
+          <div class="detail-time">${formatTime(item.timestamp)} ${cryptoLabel}</div>
+          ${cryptoName ? `<div style="font-size:12px;color:var(--muted);margin-top:4px;">加密方式: ${cryptoName}</div>` : ''}
         </div>
         <div class="detail-section">
           <strong>
@@ -605,6 +630,29 @@
       const div = document.createElement('div');
       div.textContent = text;
       return div.innerHTML;
+    }
+
+    function getCryptoLabel(crypto) {
+      const names = {
+        eapi: 'EAPI',
+        xeapi: 'XEAPI',
+        linuxapi: 'LinuxAPI',
+        weapi: 'WEAPI',
+        api: 'API',
+      };
+      const label = names[crypto] || (crypto ? crypto.toUpperCase() : '');
+      return label ? `<span class="crypto-badge crypto-badge-${crypto}">${label}</span>` : '';
+    }
+
+    function getCryptoName(crypto) {
+      const names = {
+        eapi: 'EAPI (AES-128-ECB)',
+        xeapi: 'XEAPI (AES-128-ECB)',
+        linuxapi: 'LinuxAPI (AES-128-ECB)',
+        weapi: 'WEAPI (RSA + AES)',
+        api: 'API (未加密)',
+      };
+      return names[crypto] || crypto || '未知';
     }
 
     function fetchVersion() {

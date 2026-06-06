@@ -268,6 +268,7 @@ hook.request.before = (ctx) => {
 	) {
 		req.headers['X-Real-IP'] = '118.88.88.88';
 		ctx.netease = {
+			crypto: url.path.startsWith('/weapi/') ? 'weapi' : 'api',
 			web: true,
 			path: url.path
 				.replace(/^\/weapi\//, '/api/')
@@ -327,6 +328,7 @@ hook.request.after = (ctx) => {
 				const dataToSend = {
 					timestamp: new Date().toISOString(),
 					path: netease.path,
+					crypto: netease.crypto || null,
 					param: netease.param,
 					response: netease.jsonBody,
 					statusCode: proxyRes.statusCode
@@ -339,6 +341,7 @@ hook.request.after = (ctx) => {
 				const dataToSend = {
 					timestamp: new Date().toISOString(),
 					path: netease.path,
+					crypto: netease.crypto || null,
 					param: netease.param,
 					response: null,
 					statusCode: proxyRes.statusCode,
