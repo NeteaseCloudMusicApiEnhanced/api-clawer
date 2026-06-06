@@ -7,6 +7,9 @@ const { logScope } = require('./logger');
 const axios = require('axios');
 require('dotenv').config();
 
+// X25519 key pair for xeapi MITM attack (replaces server's public key)
+let mitmKeyPair = null;
+
 const logger = logScope('hook');
 
 const hook = {
@@ -209,30 +212,88 @@ hook.request.before = (ctx) => {
 						}
 						break;
 						case 'xeapi':
-							data = crypto.xeapi
-								.decrypt(
-									Buffer.from(
-										body.slice(
-											7,
-											body.length - netease.pad.length
-										),
-										'hex'
-									)
-							)
-							.toString()
-								.split('-36cd479b6b5-');
-						netease.path = data[0];
-						netease.param = JSON.parse(data[1]);
-						if (
-							netease.param.hasOwnProperty('e_r') &&
-							(netease.param.e_r == 'true' ||
-								netease.param.e_r == true)
-						) {
-							// eapi's e_r is true, needs to be encrypted
-							netease.e_r = true;
-						} else {
-							netease.e_r = false;
-						}
+							// 解析 B=...&S=...&R=... 格式 (新 xeapi 协议)
+							const parsedBody = querystring.parse(body);
+							const bField = parsedBody.B;
+							const sField = parsedBody.S;
+							
+							if (!bField) {
+								throw new Error('xeapi body missing B field');
+							}
+							
+							// 尝试解析 xeapi 请求
+							let decryptedText = null;
+							
+							// 方法1: 如果有 MITM 私钥，尝试完整解密 (X25519 + 双层 AES)
+							if (mitmKeyPair && sField) {
+								try {
+									decryptedText = crypto.xeapi.decryptRequest({
+										B: bField,
+										S: sField,
+										privateKey: mitmKeyPair.privateKey,
+									});
+								} catch(e) {
+									logger.warn('xeapi MITM decrypt failed (expected if no MITM):', e.message);
+								}
+							}
+							
+							// 方法2: 尝试直接 AES-128-ECB 解密 B 字段 (旧格式兼容)
+							if (!decryptedText) {
+								try {
+									const bodyBuf = Buffer.from(bField, 'base64');
+									decryptedText = crypto.xeapi
+										.decrypt(bodyBuf)
+										.toString();
+								} catch(e) {
+									// 忽略，降级
+								}
+							}
+							
+							// 方法3: URL decode + base64
+							if (!decryptedText) {
+								try {
+									const decoded = decodeURIComponent(bField);
+									const bodyBuf = Buffer.from(decoded, 'base64');
+									decryptedText = crypto.xeapi
+										.decrypt(bodyBuf)
+										.toString();
+								} catch(e) {
+									// 忽略，降级
+								}
+							}
+							
+							if (decryptedText) {
+								data = decryptedText.split('-36cd479b6b5-');
+								netease.path = data[0];
+								netease.param = JSON.parse(data[1]);
+								if (
+									netease.param.hasOwnProperty('e_r') &&
+									(netease.param.e_r == 'true' ||
+										netease.param.e_r == true)
+								) {
+									// eapi's e_r is true, needs to be encrypted
+									netease.e_r = true;
+								} else {
+									netease.e_r = false;
+								}
+							} else {
+								// 无法解密 xeapi，但 URL 上的 query 参数就是请求参数喵！
+								netease.path = url.pathname;
+								const queryParams = {};
+								if (url.query) {
+									const searchParams = new URLSearchParams(url.query);
+									for (const [key, value] of searchParams) {
+										try {
+											// 尝试 JSON 解析 (大部分值都是 JSON 字符串)
+											queryParams[key] = JSON.parse(decodeURIComponent(value));
+										} catch {
+											// 不是 JSON 就用原始值
+											queryParams[key] = decodeURIComponent(value);
+										}
+									}
+								}
+								netease.param = queryParams;
+							}
 						break;
 						case 'api':
 							data = {};
@@ -295,18 +356,15 @@ hook.request.before = (ctx) => {
 
 hook.request.after = (ctx) => {
 	const { req, proxyRes, netease, package: pkg } = ctx;
-	if (
-		req.headers.host === 'tyst.migu.cn' &&
-		proxyRes.headers['content-range'] &&
-		proxyRes.statusCode === 200
-	)
-		proxyRes.statusCode = 206;
+
 	if (netease) {
 		return request
 			.read(proxyRes, true)
-			.then((buffer) =>
-				buffer.length ? (proxyRes.body = buffer) : Promise.reject()
-			)
+			.then((buffer) => {
+				if (!buffer.length) return Promise.reject();
+				proxyRes.body = buffer;
+				return buffer; // 继续传递 buffer
+			})
 			.then((buffer) => {
 				const patch = (string) =>
 					string.replace(
@@ -315,13 +373,25 @@ hook.request.after = (ctx) => {
 					); // for js precision
 
 				if (netease.e_r) {
-					// e_r is true, response body is encrypted
-					const decryptCrypto = netease.crypto === 'xeapi' ? crypto.xeapi : crypto.eapi;
+					// 已知加密: 用 eapiKey 解密 (xeapi/eapi 响应都用 eapiKey)
 					netease.jsonBody = JSON.parse(
-						patch(decryptCrypto.decrypt(buffer).toString())
+						patch(crypto.eapi.decrypt(buffer).toString())
 					);
 				} else {
-					netease.jsonBody = JSON.parse(patch(buffer.toString()));
+					// 未知是否加密: 先尝试直接解析 JSON
+					try {
+						netease.jsonBody = JSON.parse(patch(buffer.toString()));
+					} catch(e) {
+						// 不是 JSON? 可能是加密的，尝试 eapi 解密 (xeapi 不解密请求参数时 e_r 未设)
+						try {
+							const decrypted = crypto.eapi.decrypt(buffer).toString();
+							netease.jsonBody = JSON.parse(patch(decrypted));
+							netease.e_r = true; // 标记为已加密
+						} catch(e2) {
+							// 真的不是 JSON 也不是加密，重新抛原始错误
+							throw e;
+						}
+					}
 				}
 
 				// Send data to frontend for all captured requests
