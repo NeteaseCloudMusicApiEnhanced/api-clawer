@@ -118,10 +118,5 @@ src/
 |--------|--------|------|
 | PORT | 3000 | 前端服务器端口 |
 | HOOK_PORT | 9000 | 抓包代理服务器端口 |
-| NETEASE_COOKIE | - | 网易云音乐 Cookie（可选） |
-| PROXY_URL | - | 上游代理 URL（可选） |
-| FORCE_HOST | - | 强制指定网易云音乐服务器 IP（可选） |
-| STRICT | false | 是否启用严格模式（可选） |
-| CNRELAY | - | 中继服务器地址（可选） |
 
 详细配置请参考 `.env.example` 文件。

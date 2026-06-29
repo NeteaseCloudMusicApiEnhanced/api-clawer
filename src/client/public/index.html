@@ -1,429 +1,555 @@
 <!DOCTYPE html>
-<html lang="zh-CN">
+<html lang="zh-CN" data-theme="">
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <meta http-equiv="X-UA-Compatible" content="IE=edge">
+  <meta name="theme-color" content="#C20C0C" media="(prefers-color-scheme: light)">
+  <meta name="theme-color" content="#0d1117" media="(prefers-color-scheme: dark)">
+  <link rel="manifest" href="/manifest.json">
   <title>网易云音乐抓包工具</title>
   <style>
+    /* ======================== Reset & Light Variables ======================== */
     :root {
-      --fg: #333;
-      --muted: #666;
-      --border: #ddd;
-      --bg: #f5f5f5;
+      --bg: #f0f2f5;
       --panel: #ffffff;
+      --fg: #1a1a2e;
+      --fg-secondary: #555555;
+      --muted: #888888;
+      --border: #e2e2ec;
+      --header-bg: #fafbfc;
+      --status-bg: #f8f9fa;
+      --input-bg: #f8f9fa;
+      --code-bg: #f8f9fa;
+      --hover-bg: #f8f9fa;
+      --tab-bg: #fafbfc;
+      --toast-bg: #323232;
+      --modal-overlay: rgba(0,0,0,0.45);
+      --method-get-bg: #e3f2fd;
+      --method-get-fg: #1565c0;
+      --method-get-border: #bbdefb;
+      --method-post-bg: #e8f5e9;
+      --method-post-fg: #2e7d32;
+      --method-post-border: #c8e6c9;
+      --method-put-bg: #fff3e0;
+      --method-put-fg: #e65100;
+      --method-put-border: #ffe0b2;
+      --method-del-bg: #fce4ec;
+      --method-del-fg: #c62828;
+      --method-del-border: #f8bbd0;
+      --method-default-bg: #f5f5f5;
+      --method-default-fg: #616161;
+      --method-default-border: #e0e0e0;
+      --status-2xx-bg: #e8f5e9;
+      --status-2xx-fg: #2e7d32;
+      --status-3xx-bg: #e3f2fd;
+      --status-3xx-fg: #1565c0;
+      --status-4xx-bg: #fff3e0;
+      --status-4xx-fg: #e65100;
+      --status-5xx-bg: #fce4ec;
+      --status-5xx-fg: #c62828;
+      --status-err-bg: #fce4ec;
+      --status-err-fg: #c62828;
+      --scrollbar-thumb: #cccccc;
+      --scrollbar-hover: #aaaaaa;
       --accent: #C20C0C;
+      --accent-hover: #a00a0a;
+      --accent-light: #fff0f0;
+      --accent-border: #f5d0d0;
+      --success: #1e8e3e;
+      --success-bg: #e6f4ea;
+      --warning: #f9ab00;
+      --warning-bg: #fef7e0;
+      --radius: 8px;
+      --radius-sm: 4px;
+      --shadow: 0 1px 3px rgba(0,0,0,0.06);
+      --shadow-hover: 0 2px 8px rgba(0,0,0,0.1);
+      --transition: 0.2s cubic-bezier(0.4, 0, 0.2, 1);
     }
-    * { box-sizing: border-box; }
+
+    /* ======================== Dark Variables ======================== */
+    [data-theme="dark"] {
+      --bg: #0d1117;
+      --panel: #161b22;
+      --fg: #c9d1d9;
+      --fg-secondary: #8b949e;
+      --muted: #6e7681;
+      --border: #30363d;
+      --header-bg: #161b22;
+      --status-bg: #0d1117;
+      --input-bg: #0d1117;
+      --code-bg: #0d1117;
+      --hover-bg: #1c2333;
+      --tab-bg: #161b22;
+      --toast-bg: #484848;
+      --modal-overlay: rgba(0,0,0,0.7);
+      --method-get-bg: #0d2137;
+      --method-get-fg: #58a6ff;
+      --method-get-border: #1f3a5f;
+      --method-post-bg: #0d2818;
+      --method-post-fg: #3fb950;
+      --method-post-border: #1a3a28;
+      --method-put-bg: #2d1f0d;
+      --method-put-fg: #d29922;
+      --method-put-border: #3d2a14;
+      --method-del-bg: #2d0d14;
+      --method-del-fg: #f85149;
+      --method-del-border: #4a1520;
+      --method-default-bg: #1c1c1c;
+      --method-default-fg: #8b949e;
+      --method-default-border: #30363d;
+      --status-2xx-bg: #0d2818;
+      --status-2xx-fg: #3fb950;
+      --status-3xx-bg: #0d2137;
+      --status-3xx-fg: #58a6ff;
+      --status-4xx-bg: #2d1f0d;
+      --status-4xx-fg: #d29922;
+      --status-5xx-bg: #2d0d14;
+      --status-5xx-fg: #f85149;
+      --status-err-bg: #2d0d14;
+      --status-err-fg: #f85149;
+      --scrollbar-thumb: #30363d;
+      --scrollbar-hover: #484f58;
+      --accent: #f85149;
+      --accent-hover: #da3633;
+      --accent-light: #2d0a0a;
+      --accent-border: #4a1515;
+      --success: #3fb950;
+      --success-bg: #0d2818;
+      --warning: #d29922;
+      --warning-bg: #2d1f0d;
+      --shadow: 0 1px 3px rgba(0,0,0,0.3);
+      --shadow-hover: 0 2px 8px rgba(0,0,0,0.4);
+    }
+
+    /* Auto dark mode - only if no manual override */
+    @media (prefers-color-scheme: dark) {
+      :root:not([data-theme="light"]):not([data-theme="dark"]) {
+        --bg: #0d1117;
+        --panel: #161b22;
+        --fg: #c9d1d9;
+        --fg-secondary: #8b949e;
+        --muted: #6e7681;
+        --border: #30363d;
+        --header-bg: #161b22;
+        --status-bg: #0d1117;
+        --input-bg: #0d1117;
+        --code-bg: #0d1117;
+        --hover-bg: #1c2333;
+        --tab-bg: #161b22;
+        --toast-bg: #484848;
+        --modal-overlay: rgba(0,0,0,0.7);
+        --method-get-bg: #0d2137;
+        --method-get-fg: #58a6ff;
+        --method-get-border: #1f3a5f;
+        --method-post-bg: #0d2818;
+        --method-post-fg: #3fb950;
+        --method-post-border: #1a3a28;
+        --method-put-bg: #2d1f0d;
+        --method-put-fg: #d29922;
+        --method-put-border: #3d2a14;
+        --method-del-bg: #2d0d14;
+        --method-del-fg: #f85149;
+        --method-del-border: #4a1520;
+        --method-default-bg: #1c1c1c;
+        --method-default-fg: #8b949e;
+        --method-default-border: #30363d;
+        --status-2xx-bg: #0d2818;
+        --status-2xx-fg: #3fb950;
+        --status-3xx-bg: #0d2137;
+        --status-3xx-fg: #58a6ff;
+        --status-4xx-bg: #2d1f0d;
+        --status-4xx-fg: #d29922;
+        --status-5xx-bg: #2d0d14;
+        --status-5xx-fg: #f85149;
+        --status-err-bg: #2d0d14;
+        --status-err-fg: #f85149;
+        --scrollbar-thumb: #30363d;
+        --scrollbar-hover: #484f58;
+        --accent: #f85149;
+        --accent-hover: #da3633;
+        --accent-light: #2d0a0a;
+        --accent-border: #4a1515;
+        --success: #3fb950;
+        --success-bg: #0d2818;
+        --warning: #d29922;
+        --warning-bg: #2d1f0d;
+        --shadow: 0 1px 3px rgba(0,0,0,0.3);
+        --shadow-hover: 0 2px 8px rgba(0,0,0,0.4);
+      }
+    }
+
+    * { box-sizing: border-box; margin: 0; padding: 0; }
     html, body { height: 100%; }
-    body { margin: 0; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; color: var(--fg); background: var(--bg); line-height: 1.6; }
-    
+    body {
+      margin: 0;
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Noto Sans SC', sans-serif;
+      color: var(--fg);
+      background: var(--bg);
+      line-height: 1.6;
+      -webkit-font-smoothing: antialiased;
+      transition: background var(--transition), color var(--transition);
+    }
+    ::-webkit-scrollbar { width: 6px; height: 6px; }
+    ::-webkit-scrollbar-track { background: transparent; }
+    ::-webkit-scrollbar-thumb { background: var(--scrollbar-thumb); border-radius: 3px; }
+    ::-webkit-scrollbar-thumb:hover { background: var(--scrollbar-hover); }
+
+    /* ======================== Layout ======================== */
     .main-container {
       display: flex;
       height: 100vh;
       overflow: hidden;
     }
-    
     .left-panel {
-      width: 33%;
-      min-width: 300px;
-      max-width: 450px;
+      position: relative;
+      width: 35%;
+      min-width: 280px;
+      max-width: 520px;
       border-right: 1px solid var(--border);
       background: var(--panel);
       display: flex;
       flex-direction: column;
       overflow: hidden;
+      flex-shrink: 0;
+      transition: width 0.05s ease, background var(--transition), border-color var(--transition);
     }
-    
     .right-panel {
       flex: 1;
       background: var(--bg);
       overflow-y: auto;
       padding: 20px;
+      min-width: 0;
+      transition: background var(--transition);
     }
-    
+
+    /* ======================== Resize Handle ======================== */
+    .resize-handle {
+      position: absolute;
+      top: 0;
+      right: -3px;
+      width: 6px;
+      height: 100%;
+      cursor: col-resize;
+      z-index: 10;
+      opacity: 0;
+      transition: opacity 0.2s;
+    }
+    .resize-handle::after {
+      content: '';
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      width: 2px;
+      height: 32px;
+      background: var(--border);
+      border-radius: 1px;
+      transition: all 0.2s;
+    }
+    .left-panel:hover .resize-handle { opacity: 1; }
+    .resize-handle:hover::after,
+    .resize-handle.resizing::after {
+      background: var(--accent);
+      height: 48px;
+    }
+
+    /* ======================== Header ======================== */
+    .header {
+      padding: 14px 18px 12px;
+      border-bottom: 1px solid var(--border);
+      background: var(--header-bg);
+      flex-shrink: 0;
+      transition: background var(--transition), border-color var(--transition);
+    }
+    .header-top {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 4px;
+    }
+    .header h1 {
+      font-size: 17px;
+      font-weight: 700;
+      margin: 0;
+      color: var(--accent);
+      letter-spacing: -0.3px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    .header h1 .badge {
+      font-size: 10px;
+      font-weight: 500;
+      color: var(--muted);
+      background: var(--hover-bg);
+      padding: 1px 7px;
+      border-radius: 8px;
+      border: 1px solid var(--border);
+    }
+    .header .sub {
+      font-size: 12px;
+      color: var(--muted);
+      margin: 0;
+    }
+
+    /* ======================== Theme Toggle ======================== */
+    .theme-toggle {
+      background: none;
+      border: 1px solid var(--border);
+      border-radius: var(--radius-sm);
+      color: var(--muted);
+      font-size: 11px;
+      padding: 3px 8px;
+      cursor: pointer;
+      transition: all var(--transition);
+      white-space: nowrap;
+    }
+    .theme-toggle:hover {
+      border-color: var(--accent);
+      color: var(--accent);
+    }
+
+    /* ======================== Status Bar ======================== */
+    .status-bar {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      padding: 8px 18px;
+      background: var(--status-bg);
+      border-bottom: 1px solid var(--border);
+      font-size: 12px;
+      flex-shrink: 0;
+      flex-wrap: wrap;
+      transition: background var(--transition), border-color var(--transition);
+    }
+    .status-dot {
+      display: inline-block;
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      margin-right: 4px;
+      vertical-align: middle;
+      background: var(--warning);
+      transition: background var(--transition);
+    }
+    .status-dot.connected { background: var(--success); }
+    .status-label {
+      color: var(--fg-secondary);
+      vertical-align: middle;
+    }
+    .status-stat {
+      color: var(--muted);
+      margin-left: auto;
+    }
+    .status-stat strong { color: var(--fg); font-weight: 600; }
+
+    /* ======================== Toolbar ======================== */
+    .toolbar {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      padding: 8px 18px;
+      border-bottom: 1px solid var(--border);
+      flex-shrink: 0;
+      transition: border-color var(--transition);
+    }
+    .toolbar .search-wrap {
+      flex: 1;
+      position: relative;
+    }
+    .toolbar .search-wrap input {
+      width: 100%;
+      padding: 6px 10px 6px 30px;
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      font-size: 12px;
+      outline: none;
+      background: var(--input-bg);
+      color: var(--fg);
+      transition: all var(--transition);
+    }
+    .toolbar .search-wrap input:focus {
+      border-color: var(--accent);
+      background: var(--panel);
+      box-shadow: 0 0 0 2px rgba(194,12,12,0.1);
+    }
+    .toolbar .search-wrap .search-icon {
+      position: absolute;
+      left: 9px;
+      top: 50%;
+      transform: translateY(-50%);
+      color: var(--muted);
+      font-size: 11px;
+      pointer-events: none;
+      font-style: normal;
+    }
+    .tool-btn {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      padding: 5px 10px;
+      border: 1px solid var(--border);
+      border-radius: var(--radius-sm);
+      background: var(--panel);
+      color: var(--fg-secondary);
+      font-size: 12px;
+      cursor: pointer;
+      transition: all var(--transition);
+      white-space: nowrap;
+      gap: 4px;
+    }
+    .tool-btn:hover {
+      border-color: var(--accent);
+      color: var(--accent);
+      background: var(--accent-light);
+    }
+    .tool-btn:active { transform: scale(0.96); }
+    .tool-btn.danger:hover {
+      border-color: var(--accent);
+      color: #ffffff;
+      background: var(--accent);
+    }
+
+    /* ======================== Path Toggle ======================== */
+    .path-toggle {
+      display: inline-block;
+      padding: 1px 8px;
+      border: 1px solid var(--accent);
+      border-radius: 3px;
+      background: var(--accent-light);
+      color: var(--accent);
+      font-size: 10px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all var(--transition);
+      flex-shrink: 0;
+      font-family: 'Courier New', monospace;
+      letter-spacing: 0.3px;
+    }
+    .path-toggle:hover {
+      background: var(--accent);
+      color: #ffffff;
+    }
+    .path-toggle:active { transform: scale(0.95); }
+
+    /* ======================== Left Content ======================== */
     .left-content {
       flex: 1;
       overflow-y: auto;
-      padding: 16px;
+      padding: 8px 0;
     }
-    
-    .header {
-      padding: 16px 20px;
-      border-bottom: 1px solid var(--border);
-      background: #fafafa;
-      flex-shrink: 0;
-    }
-    
-    .header h1 {
-      font-size: 20px;
-      font-weight: 600;
-      margin: 0 0 8px 0;
-      color: var(--accent);
-    }
-    
-    .badge {
-      display: inline-block;
-      margin-left: 8px;
-      padding: 2px 8px;
-      border: 1px solid var(--border);
-      border-radius: 10px;
-      font-size: 11px;
-      color: var(--muted);
-    }
-    
-    .sub {
-      font-size: 13px;
-      color: var(--muted);
-      margin: 0;
-    }
-    
-    .block {
-      background: #fafafa;
-      border: 1px solid var(--border);
-      border-radius: 8px;
-      padding: 12px;
-      margin-bottom: 12px;
-    }
-    
-    .block h2 {
-      font-size: 14px;
-      font-weight: 600;
-      margin: 0 0 10px 0;
-    }
-    
-    .kvs {
-      display: grid;
-      grid-template-columns: 80px 1fr;
-      gap: 6px 10px;
-      align-items: start;
-      font-size: 13px;
-    }
-    
-    .kvs div:first-child {
-      color: var(--muted);
-      font-weight: 500;
-    }
-    
-    .kvs div:last-child {
-      word-break: break-all;
-      overflow-wrap: anywhere;
-    }
-    
-    .status {
-      display: inline-block;
-      padding: 3px 8px;
-      border-radius: 4px;
-      font-size: 12px;
-      font-weight: 500;
-    }
-    
-    .status-connected {
-      background: #e6f4ea;
-      color: #1e8e3e;
-    }
-    
-    .status-waiting {
-      background: #fef7e0;
-      color: #f9ab00;
-    }
-    
-    .capture-list {
-      margin-top: 12px;
-    }
-    
-    .capture-list h2 {
-      font-size: 14px;
-      font-weight: 600;
-      margin: 0 0 10px 0;
-    }
-    
+    .capture-list { padding: 0 10px; }
+
+    /* ======================== List Items ======================== */
     .capture-list-item {
-      padding: 10px 12px;
-      border: 1px solid var(--border);
+      display: flex;
+      align-items: flex-start;
+      gap: 8px;
+      padding: 9px 10px;
+      border: 1px solid transparent;
       border-radius: 6px;
-      margin-bottom: 8px;
-      cursor: pointer;
-      transition: all 0.2s;
-      background: var(--panel);
-    }
-    
-    .capture-list-item:hover {
-      border-color: var(--accent);
-      background: #fff5f5;
-    }
-    
-    .capture-list-item.active {
-      border-color: var(--accent);
-      background: #fff5f5;
-      box-shadow: 0 2px 4px rgba(194, 12, 12, 0.1);
-    }
-    
-    .capture-list-path {
-      font-weight: 600;
-      color: var(--accent);
-      font-size: 13px;
       margin-bottom: 4px;
+      cursor: pointer;
+      transition: all var(--transition);
+      background: transparent;
+      position: relative;
+    }
+    .capture-list-item:hover {
+      background: var(--hover-bg);
+      border-color: var(--border);
+    }
+    .capture-list-item.active {
+      background: var(--accent-light);
+      border-color: var(--accent-border);
+      box-shadow: 0 1px 4px rgba(194,12,12,0.08);
+    }
+    .capture-list-item .item-main {
+      flex: 1;
+      min-width: 0;
+    }
+    .capture-list-item .item-top {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      margin-bottom: 3px;
+    }
+    .capture-list-item .item-path {
+      font-size: 12px;
+      font-weight: 600;
+      color: var(--fg);
       overflow: hidden;
       text-overflow: ellipsis;
       white-space: nowrap;
+      flex: 1;
+      min-width: 0;
     }
-    
-    .capture-list-time {
-      font-size: 12px;
+    .capture-list-item .item-time {
+      font-size: 11px;
       color: var(--muted);
+      white-space: nowrap;
     }
-    
-    .empty-list {
-      text-align: center;
-      padding: 30px 20px;
+    .capture-list-item .item-del {
+      opacity: 0;
+      background: none;
+      border: none;
       color: var(--muted);
-      font-size: 13px;
+      font-size: 14px;
+      cursor: pointer;
+      padding: 2px 4px;
+      border-radius: 3px;
+      transition: all var(--transition);
+      line-height: 1;
+      flex-shrink: 0;
+      margin-top: 1px;
     }
-    
-    .empty-list .icon {
-      font-size: 36px;
-      margin-bottom: 8px;
-      opacity: 0.5;
-    }
-    
-    .detail-panel {
-      background: var(--panel);
-      border: 1px solid var(--border);
-      border-radius: 8px;
-      padding: 20px;
-    }
-    
-    .detail-header {
-      margin-bottom: 20px;
-      padding-bottom: 16px;
-      border-bottom: 1px solid var(--border);
-    }
-    
-    .detail-header h2 {
-      font-size: 18px;
-      font-weight: 600;
-      margin: 0 0 8px 0;
+    .capture-list-item:hover .item-del { opacity: 0.5; }
+    .capture-list-item .item-del:hover {
+      opacity: 1 !important;
+      background: var(--accent-light);
       color: var(--accent);
     }
-    
-    .detail-time {
-      font-size: 13px;
-      color: var(--muted);
-    }
-    
-    .detail-section {
-      margin-bottom: 20px;
-    }
-    
-    .detail-section:last-child {
-      margin-bottom: 0;
-    }
-    
-    .detail-section strong {
-      display: block;
-      margin-bottom: 10px;
-      font-size: 14px;
-      color: var(--muted);
-      font-weight: 600;
-    }
-    
-    .copy-btn {
+
+    /* Badges */
+    .method-badge {
       display: inline-block;
-      padding: 6px 12px;
-      background: var(--accent);
-      color: white;
-      border: none;
-      border-radius: 4px;
-      font-size: 12px;
-      cursor: pointer;
-      transition: background 0.2s;
-      margin-left: 8px;
-    }
-    
-    .copy-btn:hover {
-      background: #a00a0a;
-    }
-    
-    .copy-btn:active {
-      transform: scale(0.98);
-    }
-    
-    pre {
-      margin: 0;
-      background: #f9f9f9;
-      border: 1px solid var(--border);
-      border-radius: 6px;
-      padding: 14px;
-      overflow-x: auto;
-      white-space: pre-wrap;
-      word-break: break-all;
-      font-size: 13px;
+      padding: 1px 6px;
+      border-radius: 3px;
+      font-size: 10px;
+      font-weight: 700;
+      letter-spacing: 0.3px;
       line-height: 1.5;
+      flex-shrink: 0;
     }
-    
-    code {
-      font-family: 'Courier New', monospace;
-      font-size: 13px;
-    }
-    
-    .no-selection {
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      height: 100%;
-      color: var(--muted);
-      font-size: 14px;
-    }
-    
-    .no-selection .icon {
-      font-size: 48px;
-      margin-right: 16px;
-      opacity: 0.5;
-    }
-    
-    .toast {
-      position: fixed;
-      top: 20px;
-      right: 20px;
-      padding: 12px 20px;
-      background: #333;
-      color: white;
-      border-radius: 6px;
-      font-size: 14px;
-      opacity: 0;
-      transform: translateY(-10px);
-      transition: all 0.3s;
-      z-index: 1000;
-    }
-    
-    .toast.show {
-      opacity: 1;
-      transform: translateY(0);
-    }
-    
-    .clear-btn {
+    .method-GET    { background: var(--method-get-bg); color: var(--method-get-fg); border: 1px solid var(--method-get-border); }
+    .method-POST   { background: var(--method-post-bg); color: var(--method-post-fg); border: 1px solid var(--method-post-border); }
+    .method-PUT    { background: var(--method-put-bg); color: var(--method-put-fg); border: 1px solid var(--method-put-border); }
+    .method-DELETE { background: var(--method-del-bg); color: var(--method-del-fg); border: 1px solid var(--method-del-border); }
+    .method-default { background: var(--method-default-bg); color: var(--method-default-fg); border: 1px solid var(--method-default-border); }
+
+    .status-badge {
       display: inline-block;
-      padding: 4px 10px;
-      background: #f5f5f5;
-      color: var(--muted);
-      border: 1px solid var(--border);
-      border-radius: 4px;
-      font-size: 12px;
-      cursor: pointer;
-      transition: all 0.2s;
-      margin-left: 8px;
-    }
-    
-    .clear-btn:hover {
-      background: var(--accent);
-      color: white;
-      border-color: var(--accent);
-    }
-    
-    .clear-btn:active {
-      transform: scale(0.98);
-    }
-
-    .modal-overlay {
-      position: fixed;
-      top: 0;
-      left: 0;
-      right: 0;
-      bottom: 0;
-      background: rgba(0, 0, 0, 0.5);
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      z-index: 1000;
-      opacity: 0;
-      visibility: hidden;
-      transition: all 0.3s;
-    }
-
-    .modal-overlay.show {
-      opacity: 1;
-      visibility: visible;
-    }
-
-    .modal {
-      background: white;
-      border-radius: 8px;
-      padding: 24px;
-      min-width: 320px;
-      max-width: 400px;
-      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
-      transform: scale(0.95);
-      transition: transform 0.3s;
-    }
-
-    .modal-overlay.show .modal {
-      transform: scale(1);
-    }
-
-    .modal h3 {
-      margin: 0 0 12px 0;
-      font-size: 18px;
+      font-size: 10px;
       font-weight: 600;
-      color: var(--fg);
+      padding: 1px 5px;
+      border-radius: 3px;
+      flex-shrink: 0;
     }
+    .status-2xx { background: var(--status-2xx-bg); color: var(--status-2xx-fg); }
+    .status-3xx { background: var(--status-3xx-bg); color: var(--status-3xx-fg); }
+    .status-4xx { background: var(--status-4xx-bg); color: var(--status-4xx-fg); }
+    .status-5xx { background: var(--status-5xx-bg); color: var(--status-5xx-fg); }
+    .status-err  { background: var(--status-err-bg); color: var(--status-err-fg); }
 
-    .modal p {
-      margin: 0 0 20px 0;
-      font-size: 14px;
-      color: var(--muted);
-      line-height: 1.5;
-    }
-
-    .modal-buttons {
-      display: flex;
-      gap: 10px;
-      justify-content: flex-end;
-    }
-
-    .modal-btn {
-      padding: 8px 16px;
-      border: none;
-      border-radius: 4px;
-      font-size: 14px;
-      cursor: pointer;
-      transition: all 0.2s;
-    }
-
-    .modal-btn-cancel {
-      background: #f5f5f5;
-      color: var(--fg);
-      border: 1px solid var(--border);
-    }
-
-    .modal-btn-cancel:hover {
-      background: #e0e0e0;
-    }
-
-    .modal-btn-confirm {
-      background: var(--accent);
-      color: white;
-    }
-
-    .modal-btn-confirm:hover {
-      background: #a00a0a;
-    }
-
-    .modal-btn:active {
-      transform: scale(0.98);
-    }
-
-    /* === 加密类型标签样式 === */
+    /* Crypto badges */
     .crypto-badge {
       display: inline-block;
-      padding: 2px 8px;
-      border-radius: 4px;
-      font-size: 11px;
+      padding: 1px 6px;
+      border-radius: 3px;
+      font-size: 10px;
       font-weight: 600;
-      letter-spacing: 0.3px;
-      margin-left: 6px;
-      vertical-align: middle;
-      line-height: 1.5;
+      letter-spacing: 0.2px;
+      flex-shrink: 0;
     }
     .crypto-badge-eapi   { background: #fce4e4; color: #C20C0C; border: 1px solid #f5c6c6; }
     .crypto-badge-xeapi  { background: #fef0db; color: #d35400; border: 1px solid #fde2b6; }
@@ -431,54 +557,370 @@
     .crypto-badge-weapi  { background: #d4edda; color: #1e7e34; border: 1px solid #b8dfc6; }
     .crypto-badge-api    { background: #e9ecef; color: #495057; border: 1px solid #ced4da; }
     .crypto-badge-unknown { background: #f8f9fa; color: #adb5bd; border: 1px solid #dee2e6; }
+
+    [data-theme="dark"] .crypto-badge-eapi   { background: #3d0a0a; color: #f87171; border-color: #5c1515; }
+    [data-theme="dark"] .crypto-badge-xeapi  { background: #3d2a0a; color: #fbbf24; border-color: #5c3d14; }
+    [data-theme="dark"] .crypto-badge-linuxapi { background: #0a1a3d; color: #60a5fa; border-color: #14305c; }
+    [data-theme="dark"] .crypto-badge-weapi  { background: #0a3d14; color: #34d399; border-color: #145c28; }
+    [data-theme="dark"] .crypto-badge-api    { background: #1c1c1c; color: #9ca3af; border-color: #30363d; }
+    [data-theme="dark"] .crypto-badge-unknown { background: #161b22; color: #6e7681; border-color: #30363d; }
+
+    /* ======================== Empty State ======================== */
+    .empty-list {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      padding: 48px 20px;
+      color: var(--muted);
+      font-size: 13px;
+    }
+    .empty-list .empty-icon {
+      font-size: 28px;
+      margin-bottom: 12px;
+      opacity: 0.35;
+      font-weight: 300;
+    }
+    .empty-list p { margin-bottom: 4px; }
+
+    /* ======================== Detail Panel ======================== */
+    .detail-panel {
+      background: var(--panel);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 0;
+      overflow: hidden;
+      animation: fadeSlideIn 0.25s ease;
+      transition: background var(--transition), border-color var(--transition);
+    }
+    @keyframes fadeSlideIn {
+      from { opacity: 0; transform: translateY(6px); }
+      to   { opacity: 1; transform: translateY(0); }
+    }
+
+    .detail-header {
+      padding: 18px 20px 14px;
+      border-bottom: 1px solid var(--border);
+      background: var(--header-bg);
+      transition: background var(--transition), border-color var(--transition);
+    }
+    .detail-header .dh-top {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      margin-bottom: 6px;
+    }
+    .detail-header h2 {
+      font-size: 15px;
+      font-weight: 700;
+      margin: 0;
+      color: var(--accent);
+      word-break: break-all;
+      flex: 1;
+      min-width: 0;
+    }
+    .detail-header .dh-meta {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      flex-wrap: wrap;
+      font-size: 12px;
+      color: var(--muted);
+    }
+
+    /* ======================== Action Buttons ======================== */
+    .detail-actions {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 6px;
+      padding: 10px 20px;
+      border-bottom: 1px solid var(--border);
+      background: var(--header-bg);
+      transition: background var(--transition), border-color var(--transition);
+    }
+    .action-btn {
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+      padding: 4px 10px;
+      border: 1px solid var(--border);
+      border-radius: var(--radius-sm);
+      background: var(--panel);
+      color: var(--fg-secondary);
+      font-size: 11px;
+      cursor: pointer;
+      transition: all var(--transition);
+      white-space: nowrap;
+    }
+    .action-btn:hover {
+      border-color: var(--accent);
+      color: var(--accent);
+      background: var(--accent-light);
+    }
+    .action-btn:active { transform: scale(0.96); }
+    .action-btn.copied {
+      border-color: var(--success);
+      color: var(--success);
+      background: var(--success-bg);
+    }
+
+    /* ======================== Tabs ======================== */
+    .detail-tabs {
+      display: flex;
+      border-bottom: 1px solid var(--border);
+      background: var(--tab-bg);
+      padding: 0 20px;
+      gap: 0;
+      flex-shrink: 0;
+      transition: background var(--transition), border-color var(--transition);
+    }
+    .detail-tab {
+      padding: 8px 16px;
+      font-size: 12px;
+      font-weight: 500;
+      color: var(--muted);
+      cursor: pointer;
+      border-bottom: 2px solid transparent;
+      transition: all var(--transition);
+      background: none;
+      border-top: none;
+      border-left: none;
+      border-right: none;
+    }
+    .detail-tab:hover { color: var(--fg-secondary); }
+    .detail-tab.active {
+      color: var(--accent);
+      border-bottom-color: var(--accent);
+    }
+    .detail-tab .tab-count {
+      display: inline-block;
+      margin-left: 4px;
+      padding: 0 5px;
+      font-size: 10px;
+      background: var(--hover-bg);
+      border-radius: 6px;
+      color: var(--muted);
+      transition: background var(--transition);
+    }
+    .detail-tab.active .tab-count {
+      background: var(--accent-light);
+      color: var(--accent);
+    }
+
+    .detail-tab-content {
+      padding: 16px 20px 20px;
+      max-height: calc(100vh - 300px);
+      overflow-y: auto;
+    }
+    .detail-tab-content pre {
+      margin: 0;
+      background: var(--code-bg);
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      padding: 14px;
+      overflow-x: auto;
+      white-space: pre-wrap;
+      word-break: break-all;
+      font-size: 12px;
+      line-height: 1.6;
+      transition: background var(--transition), border-color var(--transition);
+    }
+    .detail-tab-content code {
+      font-family: 'JetBrains Mono', 'Fira Code', 'Courier New', monospace;
+      font-size: 12px;
+    }
+
+    /* ======================== No Selection ======================== */
+    .no-selection {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      height: 60vh;
+      color: var(--muted);
+      font-size: 14px;
+    }
+    .no-selection .ns-icon { font-size: 32px; margin-bottom: 12px; opacity: 0.3; font-weight: 300; }
+    .no-selection .ns-text { color: var(--muted); }
+    .no-selection .ns-hint { font-size: 12px; margin-top: 6px; opacity: 0.6; }
+
+    /* ======================== Toast ======================== */
+    .toast-container {
+      position: fixed;
+      top: 20px;
+      right: 20px;
+      z-index: 10000;
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+      pointer-events: none;
+    }
+    .toast {
+      padding: 10px 18px;
+      background: var(--toast-bg);
+      color: #ffffff;
+      border-radius: 6px;
+      font-size: 13px;
+      box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+      opacity: 0;
+      transform: translateX(20px);
+      transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+      pointer-events: auto;
+      max-width: 360px;
+    }
+    .toast.show {
+      opacity: 1;
+      transform: translateX(0);
+    }
+    .toast.toast-success { background: #1e8e3e; }
+    .toast.toast-error   { background: #c62828; }
+    .toast.toast-info    { background: #1565c0; }
+
+    /* ======================== Modal ======================== */
+    .modal-overlay {
+      position: fixed;
+      top: 0; left: 0; right: 0; bottom: 0;
+      background: var(--modal-overlay);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      z-index: 9999;
+      opacity: 0;
+      visibility: hidden;
+      transition: all 0.25s;
+    }
+    .modal-overlay.show {
+      opacity: 1;
+      visibility: visible;
+    }
+    .modal {
+      background: var(--panel);
+      border-radius: var(--radius);
+      padding: 24px;
+      min-width: 320px;
+      max-width: 420px;
+      box-shadow: 0 8px 24px rgba(0,0,0,0.15);
+      transform: scale(0.92);
+      transition: transform 0.25s, background var(--transition);
+    }
+    .modal-overlay.show .modal { transform: scale(1); }
+    .modal h3 {
+      margin: 0 0 8px;
+      font-size: 16px;
+      font-weight: 600;
+      color: var(--fg);
+    }
+    .modal p {
+      margin: 0 0 20px;
+      font-size: 13px;
+      color: var(--fg-secondary);
+      line-height: 1.5;
+    }
+    .modal-buttons {
+      display: flex;
+      gap: 8px;
+      justify-content: flex-end;
+    }
+    .modal-btn {
+      padding: 7px 16px;
+      border: none;
+      border-radius: var(--radius-sm);
+      font-size: 13px;
+      cursor: pointer;
+      transition: all var(--transition);
+    }
+    .modal-btn-cancel {
+      background: var(--hover-bg);
+      color: var(--fg);
+      border: 1px solid var(--border);
+    }
+    .modal-btn-cancel:hover { background: var(--border); }
+    .modal-btn-confirm {
+      background: var(--accent);
+      color: #ffffff;
+    }
+    .modal-btn-confirm:hover { background: var(--accent-hover); }
+    .modal-btn:active { transform: scale(0.97); }
+
+    /* ======================== Responsive ======================== */
+    @media (max-width: 768px) {
+      .main-container { flex-direction: column; }
+      .left-panel {
+        width: 100% !important;
+        min-width: 0;
+        max-width: none;
+        height: 45vh;
+        border-right: none;
+        border-bottom: 1px solid var(--border);
+      }
+      .resize-handle { display: none; }
+      .right-panel { height: 55vh; }
+      .detail-tab-content { max-height: calc(50vh - 200px); }
+    }
   </style>
 </head>
 <body>
   <div class="main-container">
-    <div class="left-panel">
+    <!-- ======================== LEFT PANEL ======================== -->
+    <div class="left-panel" id="left-panel">
+      <div class="resize-handle" id="resize-handle"></div>
+
+      <!-- Header -->
       <div class="header">
-        <h1>网易云音乐抓包工具 <span class="badge" id="version-badge">加载中...</span></h1>
-        <p class="sub">🔍 简易网易云音乐客户端抓包工具</p>
-      </div>
-      <div class="left-content">
-        <section class="block">
-          <h2>状态</h2>
-          <div class="kvs">
-            <div>连接状态</div><div><span id="status" class="status status-waiting">等待连接...</span></div>
-            <div>Base URL</div><div id="base-url">—</div>
-            <div>抓包数量</div><div id="capture-count">0</div>
-          </div>
-        </section>
-
-        <section class="block">
-          <h2>使用说明</h2>
-          <div class="kvs">
-            <div>1. 启动服务</div><div>运行 <code>npm run dev</code></div>
-            <div>2. 设置代理</div><div>客户端代理: <code>localhost:9000</code></div>
-            <div>3. 开始抓包</div><div>在客户端中操作,数据实时显示</div>
-          </div>
-        </section>
-
-        <div class="capture-list">
-          <h2>抓包列表 <button class="clear-btn" onclick="clearCaptures()">清空</button></h2>
-          <div id="capture-list"></div>
+        <div class="header-top">
+          <h1>
+            ［抓包工具］
+            <span class="badge" id="version-badge">加载中...</span>
+          </h1>
+          <button class="theme-toggle" id="theme-toggle" onclick="toggleTheme()" title="切换深色/浅色模式">深色</button>
         </div>
+        <p class="sub">网易云音乐客户端抓包 &amp; 调试</p>
+      </div>
+
+      <!-- Status Bar -->
+      <div class="status-bar">
+        <span>
+          <span class="status-dot" id="status-dot"></span>
+          <span class="status-label" id="status-label">等待连接...</span>
+        </span>
+        <span class="status-stat">
+          <strong id="capture-count">0</strong> 条记录
+        </span>
+      </div>
+
+      <!-- Toolbar -->
+      <div class="toolbar">
+        <div class="search-wrap">
+          <i class="search-icon">[搜索]</i>
+          <input type="text" id="search-input" placeholder="搜索路径或参数..." oninput="onSearchInput()">
+        </div>
+        <button class="tool-btn" onclick="exportAll()" title="导出所有数据为 JSON">导出</button>
+        <button class="tool-btn danger" onclick="confirmClear()" title="清空所有抓包数据">清空</button>
+      </div>
+
+      <!-- Capture List -->
+      <div class="left-content">
+        <div class="capture-list" id="capture-list"></div>
       </div>
     </div>
-    
-    <div class="right-panel">
+
+    <!-- ======================== RIGHT PANEL ======================== -->
+    <div class="right-panel" id="right-panel">
       <div id="detail-panel" class="detail-panel">
         <div class="no-selection">
-          <span class="icon">📡</span>
-          <span>请从左侧选择一个抓包记录查看详情</span>
+          <div class="ns-icon">[ -- ]</div>
+          <div class="ns-text">选择一个抓包记录查看详情</div>
+          <div class="ns-hint">左侧列表点击任意记录</div>
         </div>
       </div>
     </div>
   </div>
 
-  <div id="toast" class="toast">已复制到剪贴板</div>
+  <!-- ======================== TOAST ======================== -->
+  <div class="toast-container" id="toast-container"></div>
 
-  <div id="modal-overlay" class="modal-overlay">
+  <!-- ======================== MODAL ======================== -->
+  <div class="modal-overlay" id="modal-overlay">
     <div class="modal">
       <h3 id="modal-title">确认操作</h3>
       <p id="modal-message">确定要执行此操作吗？</p>
@@ -490,92 +932,480 @@
   </div>
 
   <script>
+    // ======================== State ========================
     let capturedData = [];
     let selectedIndex = -1;
+    let searchQuery = '';
 
-    function updateStatus() {
-      const statusEl = document.getElementById('status');
-      statusEl.className = 'status status-connected';
-      statusEl.textContent = '已连接';
+    // ======================== Theme ========================
+    function getPreferredTheme() {
+      const stored = localStorage.getItem('theme-preference');
+      if (stored === 'dark' || stored === 'light') return stored;
+      return window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
     }
 
+    function applyTheme(theme) {
+      document.documentElement.setAttribute('data-theme', theme);
+      localStorage.setItem('theme-preference', theme);
+      const btn = document.getElementById('theme-toggle');
+      if (btn) btn.textContent = theme === 'dark' ? '浅色' : '深色';
+    }
+
+    function toggleTheme() {
+      const current = document.documentElement.getAttribute('data-theme') || 'light';
+      applyTheme(current === 'dark' ? 'light' : 'dark');
+    }
+
+    // Init theme
+    applyTheme(getPreferredTheme());
+
+    // Listen for system theme changes
+    window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', (e) => {
+      const stored = localStorage.getItem('theme-preference');
+      if (!stored) {
+        applyTheme(e.matches ? 'dark' : 'light');
+      }
+    });
+
+    // ======================== Toast ========================
+    function showToast(message, type) {
+      type = type || 'info';
+      const container = document.getElementById('toast-container');
+      const toast = document.createElement('div');
+      toast.className = 'toast toast-' + type;
+      toast.textContent = message;
+      container.appendChild(toast);
+      toast.offsetHeight;
+      toast.classList.add('show');
+      setTimeout(() => {
+        toast.classList.remove('show');
+        setTimeout(() => toast.remove(), 300);
+      }, 2200);
+    }
+
+    // ======================== Modal ========================
+    function showConfirm(title, message, onConfirm) {
+      const overlay = document.getElementById('modal-overlay');
+      document.getElementById('modal-title').textContent = title;
+      document.getElementById('modal-message').textContent = message;
+      const confirmBtn = document.getElementById('modal-confirm-btn');
+      const newBtn = confirmBtn.cloneNode(true);
+      confirmBtn.parentNode.replaceChild(newBtn, confirmBtn);
+      newBtn.addEventListener('click', () => {
+        closeModal();
+        if (onConfirm) onConfirm();
+      });
+      overlay.classList.add('show');
+    }
+    function closeModal() {
+      document.getElementById('modal-overlay').classList.remove('show');
+    }
+    document.getElementById('modal-overlay').addEventListener('click', (e) => {
+      if (e.target.id === 'modal-overlay') closeModal();
+    });
+
+    // ======================== Search ========================
+    function onSearchInput() {
+      searchQuery = document.getElementById('search-input').value.trim().toLowerCase();
+      renderCaptureList();
+    }
+
+    function matchesSearch(item) {
+      if (!searchQuery) return true;
+      const path = (item.path || '').toLowerCase();
+      if (path.includes(searchQuery)) return true;
+      const param = item.param;
+      if (param && typeof param === 'object') {
+        const paramStr = JSON.stringify(param).toLowerCase();
+        if (paramStr.includes(searchQuery)) return true;
+      }
+      return false;
+    }
+
+    // ======================== Crypto helpers ========================
+    function getCryptoLabel(crypto) {
+      const names = {
+        eapi: 'EAPI', xeapi: 'XEAPI', linuxapi: 'LinuxAPI',
+        weapi: 'WEAPI', api: 'API',
+      };
+      const label = names[crypto] || (crypto ? crypto.toUpperCase() : '');
+      return label ? `<span class="crypto-badge crypto-badge-${crypto}">${label}</span>` : '';
+    }
+    function getCryptoName(crypto) {
+      const names = {
+        eapi: 'EAPI (AES-128-ECB)',
+        xeapi: 'XEAPI (AES-128-ECB)',
+        linuxapi: 'LinuxAPI (AES-128-ECB)',
+        weapi: 'WEAPI (RSA + AES)',
+        api: 'API (未加密)',
+      };
+      return names[crypto] || crypto || '未知';
+    }
+
+    // ======================== Method / Status helpers ========================
+    function getMethodBadge(method) {
+      method = (method || '').toUpperCase();
+      const cls = 'method-' + (['GET','POST','PUT','DELETE'].includes(method) ? method : 'default');
+      return `<span class="method-badge ${cls}">${method || '---'}</span>`;
+    }
+    function getStatusBadge(code) {
+      if (!code) return `<span class="status-badge status-err">ERR</span>`;
+      const group = Math.floor(code / 100) + 'xx';
+      return `<span class="status-badge status-${group}">${code}</span>`;
+    }
+
+    // ======================== Render List ========================
     function renderCaptureList() {
       const container = document.getElementById('capture-list');
       const countEl = document.getElementById('capture-count');
 
-      if (!capturedData || capturedData.length === 0) {
+      const filtered = capturedData.filter(matchesSearch);
+
+      countEl.textContent = capturedData.length;
+
+      if (filtered.length === 0) {
         container.innerHTML = `
           <div class="empty-list">
-            <div class="icon">📡</div>
-            <p>暂无抓包数据</p>
-            <p style="font-size: 12px; margin-top: 6px; opacity: 0.7;">请设置网易云音乐客户端代理并开始使用</p>
+            <div class="empty-icon">${searchQuery ? '[ 搜索 ]' : '[ -- ]'}</div>
+            <p>${searchQuery ? '没有匹配的抓包记录' : '暂无抓包数据'}</p>
+            <p style="font-size:12px;opacity:0.7;">${searchQuery ? '试试其他关键词？' : '请设置代理并开始使用'}</p>
           </div>
         `;
-        countEl.textContent = '0';
         return;
       }
 
-      countEl.textContent = capturedData.length;
-      
-      container.innerHTML = capturedData.map((item, index) => {
+      container.innerHTML = filtered.map((item) => {
+        const realIdx = capturedData.indexOf(item);
+        const isActive = realIdx === selectedIndex;
         const cryptoLabel = item.crypto ? getCryptoLabel(item.crypto) : '';
+        const methodBadge = getMethodBadge(item.method);
+        const statusBadge = getStatusBadge(item.statusCode);
+        const time = formatTime(item.timestamp);
+
         return `
-          <div class="capture-list-item ${index === selectedIndex ? 'active' : ''}" 
-               onclick="selectCapture(${index})">
-            <div class="capture-list-path">${escapeHtml(item.path)} ${cryptoLabel}</div>
-            <div class="capture-list-time">${formatTime(item.timestamp)}</div>
+          <div class="capture-list-item ${isActive ? 'active' : ''}"
+               onclick="selectCapture(${realIdx})"
+               data-index="${realIdx}">
+            <div class="item-main">
+              <div class="item-top">
+                ${methodBadge}
+                <span class="item-path">${escapeHtml(item.path || 'Unknown')}</span>
+                ${cryptoLabel}
+              </div>
+              <div style="display:flex;align-items:center;gap:6px;margin-top:2px;">
+                ${statusBadge}
+                <span class="item-time">${time}</span>
+              </div>
+            </div>
+            <button class="item-del" onclick="event.stopPropagation();deleteItem(${realIdx})" title="删除">x</button>
           </div>
         `;
       }).join('');
+    }
+
+    // ======================== Select & Detail ========================
+    let activeTab = 'params';
+    let showRawPath = false;
+
+    function getDisplayPath(item) {
+      if (showRawPath && item && item.rawPath) return item.rawPath;
+      return item ? item.path : '';
+    }
+
+    function getRawPrefix(rawPath) {
+      if (!rawPath) return '/api/';
+      var match = rawPath.match(/^(\/[a-z0-9_]+)(\/|$)/);
+      return match ? match[1] + '/' : '/api/';
     }
 
     function selectCapture(index) {
       selectedIndex = index;
       const item = capturedData[index];
       const detailPanel = document.getElementById('detail-panel');
-      
+      activeTab = 'params';
+      showRawPath = false;
+
       if (!item) {
         detailPanel.innerHTML = `
           <div class="no-selection">
-            <span class="icon">📡</span>
-            <span>请从左侧选择一个抓包记录查看详情</span>
+            <div class="ns-icon">[ -- ]</div>
+            <div class="ns-text">选择一个抓包记录查看详情</div>
           </div>
         `;
         renderCaptureList();
         return;
       }
 
-      const filteredParam = filterParam(item.param);
-      const cryptoLabel = item.crypto ? getCryptoLabel(item.crypto) : '';
-      const cryptoName = item.crypto ? getCryptoName(item.crypto) : '';
-      
-      detailPanel.innerHTML = `
-        <div class="detail-header">
-          <h2>${escapeHtml(item.path)}</h2>
-          <div class="detail-time">${formatTime(item.timestamp)} ${cryptoLabel}</div>
-          ${cryptoName ? `<div style="font-size:12px;color:var(--muted);margin-top:4px;">加密方式: ${cryptoName}</div>` : ''}
-        </div>
-        <div class="detail-section">
-          <strong>
-            请求参数
-            <button class="copy-btn" onclick="copyParam(${index})">复制参数</button>
-          </strong>
-          <pre><code>${formatJson(filteredParam)}</code></pre>
-        </div>
-        ${item.response ? `
-          <div class="detail-section">
-            <strong>响应数据</strong>
-            <pre><code>${formatJson(item.response)}</code></pre>
-          </div>
-        ` : ''}
-      `;
-      
+      renderDetail(item, index);
       renderCaptureList();
+      setTimeout(() => {
+        const el = document.querySelector(`.capture-list-item[data-index="${index}"]`);
+        if (el) el.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+      }, 50);
     }
 
+    function renderDetail(item, index) {
+      const panel = document.getElementById('detail-panel');
+      const cryptoLabel = item.crypto ? getCryptoLabel(item.crypto) : '';
+      const cryptoName = item.crypto ? getCryptoName(item.crypto) : '';
+      const methodBadge = getMethodBadge(item.method);
+      const statusBadge = getStatusBadge(item.statusCode);
+      const fullDate = formatFullDate(item.timestamp);
+
+      const filteredParam = filterParam(item.param);
+
+      panel.innerHTML = `
+        <div class="detail-header">
+          <div class="dh-top">
+            ${methodBadge}
+            <h2>${escapeHtml(getDisplayPath(item) || 'Unknown')}</h2>
+            ${item.rawPath ? `<button class="path-toggle" onclick="event.stopPropagation();togglePathDisplay(${index})" title="切换路径显示">${showRawPath ? '/api/' : escapeHtml(getRawPrefix(item.rawPath))}</button>` : ''}
+          </div>
+          <div class="dh-meta">
+            ${statusBadge}
+            ${cryptoLabel}
+            <span>${cryptoName ? cryptoName : ''}</span>
+            <span>${fullDate}</span>
+          </div>
+        </div>
+
+        <div class="detail-actions">
+          <button class="action-btn" onclick="copyPath(${index})">[复制] 路径</button>
+          <button class="action-btn" onclick="copyCurl(${index})">[复制] cURL</button>
+          <button class="action-btn" onclick="copyParam(${index})">[复制] 参数</button>
+          <button class="action-btn" onclick="copyResponse(${index})">[复制] 响应</button>
+        </div>
+
+        <div class="detail-tabs" id="detail-tabs">
+          <button class="detail-tab ${activeTab === 'params' ? 'active' : ''}" onclick="switchTab('params')">
+            请求参数
+            <span class="tab-count">${countKeys(filteredParam)}</span>
+          </button>
+          <button class="detail-tab ${activeTab === 'response' ? 'active' : ''}" onclick="switchTab('response')">
+            响应数据
+            <span class="tab-count">${item.response ? countKeys(item.response) : 0}</span>
+          </button>
+          <button class="detail-tab ${activeTab === 'raw' ? 'active' : ''}" onclick="switchTab('raw')">
+            原始 JSON
+          </button>
+        </div>
+
+        <div class="detail-tab-content" id="detail-tab-content">
+          ${renderTabContent(item, filteredParam)}
+        </div>
+      `;
+    }
+
+    function renderTabContent(item, filteredParam) {
+      switch(activeTab) {
+        case 'params':
+          return `
+            <strong style="font-size:12px;color:var(--muted);display:block;margin-bottom:8px;">
+              请求参数 (${countKeys(filteredParam)} 个字段)
+            </strong>
+            <pre><code>${formatJson(filteredParam)}</code></pre>
+          `;
+        case 'response':
+          if (!item.response) {
+            return `
+              <div style="text-align:center;padding:30px;color:var(--muted);">
+                <div style="font-size:24px;margin-bottom:8px;opacity:0.35;">[ 空 ]</div>
+                <div>暂无响应数据</div>
+                ${item.error ? `<div style="font-size:12px;margin-top:6px;color:var(--accent);">错误: ${escapeHtml(item.error)}</div>` : ''}
+              </div>
+            `;
+          }
+          return `
+            <strong style="font-size:12px;color:var(--muted);display:block;margin-bottom:8px;">
+              响应数据 (${countKeys(item.response)} 个字段)
+              <span style="font-weight:400;margin-left:8px;">
+                <label style="cursor:pointer;user-select:none;">
+                  <input type="checkbox" id="toggle-raw" onchange="toggleResponseRaw(${capturedData.indexOf(item)})" style="vertical-align:middle;">
+                  <span style="vertical-align:middle;">原始格式</span>
+                </label>
+              </span>
+            </strong>
+            <pre><code id="response-content">${formatJson(item.response)}</code></pre>
+          `;
+        case 'raw':
+          return `
+            <strong style="font-size:12px;color:var(--muted);display:block;margin-bottom:8px;">
+              完整原始数据
+              <button class="action-btn" style="margin-left:8px;" onclick="copyRaw(${capturedData.indexOf(item)})">[复制] 原始数据</button>
+            </strong>
+            <pre><code>${formatJson(item)}</code></pre>
+          `;
+        default:
+          return '';
+      }
+    }
+
+    function switchTab(tab) {
+      activeTab = tab;
+      const item = capturedData[selectedIndex];
+      if (item) renderDetail(item, selectedIndex);
+    }
+
+    function togglePathDisplay(index) {
+      showRawPath = !showRawPath;
+      const item = capturedData[index];
+      if (item) renderDetail(item, index);
+    }
+
+    function toggleResponseRaw(index) {
+      const item = capturedData[index];
+      if (!item || !item.response) return;
+      const el = document.getElementById('response-content');
+      if (!el) return;
+      const raw = document.getElementById('toggle-raw').checked;
+      if (raw) {
+        el.textContent = JSON.stringify(item.response);
+      } else {
+        el.textContent = formatJson(item.response);
+      }
+    }
+
+    // ======================== Copy functions ========================
+    function copyToClipboard(text, label) {
+      navigator.clipboard.writeText(text).then(() => {
+        showToast(label || '已复制到剪贴板', 'success');
+      }).catch(() => {
+        const ta = document.createElement('textarea');
+        ta.value = text;
+        ta.style.position = 'fixed';
+        ta.style.opacity = '0';
+        document.body.appendChild(ta);
+        ta.select();
+        try {
+          document.execCommand('copy');
+          showToast(label || '已复制到剪贴板', 'success');
+        } catch(e) {
+          showToast('复制失败，请手动复制', 'error');
+        }
+        document.body.removeChild(ta);
+      });
+    }
+
+    function copyPath(index) {
+      const item = capturedData[index];
+      const path = getDisplayPath(item);
+      if (!item || !path) return showToast('无路径可复制', 'error');
+      copyToClipboard(path, '路径已复制');
+    }
+
+    function copyParam(index) {
+      const item = capturedData[index];
+      if (!item) return;
+      const filtered = filterParam(item.param);
+      copyToClipboard(formatJson(filtered), '参数已复制');
+    }
+
+    function copyResponse(index) {
+      const item = capturedData[index];
+      if (!item || !item.response) return showToast('无响应数据可复制', 'error');
+      copyToClipboard(formatJson(item.response), '响应已复制');
+    }
+
+    function copyRaw(index) {
+      const item = capturedData[index];
+      if (!item) return;
+      copyToClipboard(formatJson(item), '原始数据已复制');
+    }
+
+    function copyCurl(index) {
+      const item = capturedData[index];
+      if (!item) return showToast('数据不完整', 'error');
+      const method = (item.method || 'POST').toUpperCase();
+      const url = 'https://music.163.com' + (getDisplayPath(item) || '');
+      let curl = 'curl -X ' + method + ' \'' + url + '\'';
+
+      curl += ' \\\n  -H \'Content-Type: application/json\'';
+
+      const filtered = filterParam(item.param);
+      if (filtered && Object.keys(filtered).length > 0) {
+        const jsonData = JSON.stringify(filtered);
+        const escaped = jsonData.replace(/'/g, '\'\\\'\'');
+        curl += ' \\\n  -d \'' + escaped + '\'';
+      }
+
+      curl += ' \\\n  --insecure';
+
+      copyToClipboard(curl, 'cURL 已复制');
+    }
+
+    // ======================== Delete & Clear & Export ========================
+    function deleteItem(index) {
+      const item = capturedData[index];
+      if (!item) return;
+      const path = item.path || 'Unknown';
+      showConfirm(
+        '删除抓包记录',
+        '确定要删除 "' + path + '" 的抓包记录吗？',
+        () => {
+          capturedData.splice(index, 1);
+          if (selectedIndex === index) {
+            selectedIndex = -1;
+            document.getElementById('detail-panel').innerHTML = `
+              <div class="no-selection">
+                <div class="ns-icon">[ -- ]</div>
+                <div class="ns-text">选择一个抓包记录查看详情</div>
+              </div>
+            `;
+          } else if (selectedIndex > index) {
+            selectedIndex--;
+          }
+          renderCaptureList();
+          showToast('已删除该记录', 'info');
+        }
+      );
+    }
+
+    function confirmClear() {
+      if (!capturedData || capturedData.length === 0) {
+        return showToast('暂无数据可清空', 'info');
+      }
+      showConfirm(
+        '清空所有数据',
+        '确定要清空全部 ' + capturedData.length + ' 条抓包记录吗？此操作不可撤销。',
+        () => {
+          capturedData = [];
+          selectedIndex = -1;
+          renderCaptureList();
+          document.getElementById('detail-panel').innerHTML = `
+            <div class="no-selection">
+              <div class="ns-icon">[ -- ]</div>
+              <div class="ns-text">选择一个抓包记录查看详情</div>
+            </div>
+          `;
+          fetch('/api/clear', { method: 'POST' })
+            .then(r => r.json())
+            .then(d => {
+              if (d.success) showToast('已清空所有数据', 'info');
+            })
+            .catch(() => showToast('清空请求失败', 'error'));
+        }
+      );
+    }
+
+    function exportAll() {
+      if (!capturedData || capturedData.length === 0) {
+        return showToast('暂无数据可导出', 'info');
+      }
+      const blob = new Blob([formatJson(capturedData)], { type: 'application/json' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = 'netease-capture-' + new Date().toISOString().slice(0,19).replace(/[:-]/g,'') + '.json';
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+      showToast('已导出 ' + capturedData.length + ' 条记录', 'success');
+    }
+
+    // ======================== Utility ========================
     function filterParam(param) {
       if (!param || typeof param !== 'object') return param;
-      
       const filtered = {};
       for (const key in param) {
         if (key !== 'e_r' && key !== 'header') {
@@ -583,30 +1413,6 @@
         }
       }
       return filtered;
-    }
-
-    function copyParam(index) {
-      const item = capturedData[index];
-      if (!item || !item.param) return;
-      
-      const filteredParam = filterParam(item.param);
-      const jsonStr = formatJson(filteredParam);
-      
-      navigator.clipboard.writeText(jsonStr).then(() => {
-        showToast('已复制到剪贴板');
-      }).catch(err => {
-        console.error('Copy failed:', err);
-        showToast('复制失败，请手动复制');
-      });
-    }
-
-    function showToast(message) {
-      const toast = document.getElementById('toast');
-      toast.textContent = message;
-      toast.classList.add('show');
-      setTimeout(() => {
-        toast.classList.remove('show');
-      }, 2000);
     }
 
     function formatJson(obj) {
@@ -619,11 +1425,16 @@
 
     function formatTime(timestamp) {
       try {
-        const date = new Date(timestamp);
-        return date.toLocaleTimeString('zh-CN', { hour12: false });
-      } catch (e) {
-        return timestamp;
-      }
+        const d = new Date(timestamp);
+        return d.toLocaleTimeString('zh-CN', { hour12: false });
+      } catch(e) { return timestamp; }
+    }
+
+    function formatFullDate(timestamp) {
+      try {
+        const d = new Date(timestamp);
+        return d.toLocaleString('zh-CN', { hour12: false });
+      } catch(e) { return timestamp; }
     }
 
     function escapeHtml(text) {
@@ -632,170 +1443,108 @@
       return div.innerHTML;
     }
 
-    function getCryptoLabel(crypto) {
-      const names = {
-        eapi: 'EAPI',
-        xeapi: 'XEAPI',
-        linuxapi: 'LinuxAPI',
-        weapi: 'WEAPI',
-        api: 'API',
-      };
-      const label = names[crypto] || (crypto ? crypto.toUpperCase() : '');
-      return label ? `<span class="crypto-badge crypto-badge-${crypto}">${label}</span>` : '';
+    function countKeys(obj) {
+      if (!obj || typeof obj !== 'object') return 0;
+      return Object.keys(obj).length;
     }
 
-    function getCryptoName(crypto) {
-      const names = {
-        eapi: 'EAPI (AES-128-ECB)',
-        xeapi: 'XEAPI (AES-128-ECB)',
-        linuxapi: 'LinuxAPI (AES-128-ECB)',
-        weapi: 'WEAPI (RSA + AES)',
-        api: 'API (未加密)',
+    // ======================== Panel Resize ========================
+    function initResize() {
+      const handle = document.getElementById('resize-handle');
+      const panel = document.getElementById('left-panel');
+      let isResizing = false;
+
+      handle.addEventListener('mousedown', () => {
+        isResizing = true;
+        handle.classList.add('resizing');
+        document.body.style.cursor = 'col-resize';
+        document.body.style.userSelect = 'none';
+      });
+
+      document.addEventListener('mousemove', (e) => {
+        if (!isResizing) return;
+        const maxWidth = window.innerWidth * 0.55;
+        const minWidth = 260;
+        let width = Math.max(minWidth, Math.min(maxWidth, e.clientX));
+        panel.style.width = width + 'px';
+      });
+
+      document.addEventListener('mouseup', () => {
+        if (isResizing) {
+          isResizing = false;
+          handle.classList.remove('resizing');
+          document.body.style.cursor = '';
+          document.body.style.userSelect = '';
+        }
+      });
+    }
+
+    // ======================== SSE & Init ========================
+    function setupSSE() {
+      const eventSource = new EventSource('/api/events');
+      const statusDot = document.getElementById('status-dot');
+      const statusLabel = document.getElementById('status-label');
+
+      eventSource.onmessage = function(event) {
+        try {
+          const data = JSON.parse(event.data);
+          statusDot.className = 'status-dot connected';
+          statusLabel.textContent = '已连接';
+
+          capturedData = data;
+          renderCaptureList();
+
+          if (selectedIndex === -1 && data.length > 0) {
+            selectCapture(0);
+          } else if (selectedIndex >= data.length) {
+            selectedIndex = -1;
+            document.getElementById('detail-panel').innerHTML = `
+              <div class="no-selection">
+                <div class="ns-icon">[ -- ]</div>
+                <div class="ns-text">选择一个抓包记录查看详情</div>
+              </div>
+            `;
+          } else if (selectedIndex >= 0) {
+            const item = capturedData[selectedIndex];
+            if (item) renderDetail(item, selectedIndex);
+          }
+        } catch(e) {
+          console.error('SSE parse error:', e);
+        }
       };
-      return names[crypto] || crypto || '未知';
+
+      eventSource.onerror = function() {
+        statusDot.className = 'status-dot';
+        statusLabel.textContent = '连接断开，正在重试...';
+      };
     }
 
     function fetchVersion() {
       fetch('/api/version')
-        .then(response => response.json())
-        .then(data => {
-          if (data.version) {
-            document.getElementById('version-badge').textContent = 'v' + data.version;
-          } else {
-            document.getElementById('version-badge').textContent = 'v0.1.0';
-          }
+        .then(r => r.json())
+        .then(d => {
+          document.getElementById('version-badge').textContent = 'v' + (d.version || '0.1.0');
         })
-        .catch(err => {
-          console.error('Failed to fetch version:', err);
+        .catch(() => {
           document.getElementById('version-badge').textContent = 'v0.1.0';
         });
     }
 
-    function showConfirm(title, message, onConfirm) {
-      const overlay = document.getElementById('modal-overlay');
-      const titleEl = document.getElementById('modal-title');
-      const messageEl = document.getElementById('modal-message');
-      const confirmBtn = document.getElementById('modal-confirm-btn');
-      
-      titleEl.textContent = title;
-      messageEl.textContent = message;
-      
-      // 移除之前的事件监听器
-      const newConfirmBtn = confirmBtn.cloneNode(true);
-      confirmBtn.parentNode.replaceChild(newConfirmBtn, confirmBtn);
-      
-      // 添加新的事件监听器
-      newConfirmBtn.addEventListener('click', () => {
-        closeModal();
-        if (onConfirm) {
-          onConfirm();
-        }
-      });
-      
-      overlay.classList.add('show');
-    }
-
-    function closeModal() {
-      document.getElementById('modal-overlay').classList.remove('show');
-    }
-
-    // 点击遮罩层关闭模态框
-    document.getElementById('modal-overlay').addEventListener('click', (e) => {
-      if (e.target.id === 'modal-overlay') {
-        closeModal();
+    // ======================== PWA Service Worker ========================
+    function registerSW() {
+      if ('serviceWorker' in navigator) {
+        navigator.serviceWorker.register('/sw.js').catch(function(err) {
+          console.log('ServiceWorker registration failed:', err);
+        });
       }
-    });
-
-    function clearCaptures() {
-      if (!capturedData || capturedData.length === 0) {
-        showToast('暂无抓包数据可清空');
-        return;
-      }
-      
-      showConfirm(
-        '清空抓包数据',
-        '确定要清空所有抓包信息吗？此操作不可撤销。',
-        () => {
-          capturedData = [];
-          selectedIndex = -1;
-          renderCaptureList();
-          
-          // 重置右侧详情面板
-          const detailPanel = document.getElementById('detail-panel');
-          detailPanel.innerHTML = `
-            <div class="no-selection">
-              <span class="icon">📡</span>
-              <span>请从左侧选择一个抓包记录查看详情</span>
-            </div>
-          `;
-          
-          // 向服务器发送清空请求
-          fetch('/api/clear', { method: 'POST' })
-            .then(response => response.json())
-            .then(data => {
-              if (data.success) {
-                showToast('已清空所有抓包信息');
-              } else {
-                showToast('清空失败: ' + (data.message || '未知错误'));
-              }
-            })
-            .catch(err => {
-              console.error('Clear failed:', err);
-              showToast('清空失败，请重试');
-            });
-        }
-      );
     }
 
-    function setupSSE() {
-      const eventSource = new EventSource('/api/events');
-      
-      eventSource.onmessage = function(event) {
-        try {
-          const data = JSON.parse(event.data);
-          
-          // 更新状态为已连接
-          updateStatus();
-          
-          // 直接使用服务器返回的数据
-          capturedData = data;
-          renderCaptureList();
-          
-          // 如果当前没有选中且数据不为空，自动选中第一个
-          if (selectedIndex === -1 && data.length > 0) {
-            selectCapture(0);
-          }
-          
-          // 如果选中的索引超出了数据范围，重置选中状态
-          if (selectedIndex >= data.length) {
-            selectedIndex = -1;
-            const detailPanel = document.getElementById('detail-panel');
-            detailPanel.innerHTML = `
-              <div class="no-selection">
-                <span class="icon">📡</span>
-                <span>请从左侧选择一个抓包记录查看详情</span>
-              </div>
-            `;
-          }
-        } catch (e) {
-          console.error('Failed to parse SSE data:', e);
-        }
-      };
-      
-      eventSource.onerror = function(error) {
-        console.error('SSE error:', error);
-      };
-    }
-
-    document.addEventListener('DOMContentLoaded', function () {
-      var origin = window.location.origin;
-      document.getElementById('base-url').textContent = origin;
-
-      // 获取版本信息
+    document.addEventListener('DOMContentLoaded', function() {
       fetchVersion();
-
-      // 设置 SSE 连接
       setupSSE();
+      initResize();
+      renderCaptureList();
+      registerSW();
     });
   </script>
 </body>

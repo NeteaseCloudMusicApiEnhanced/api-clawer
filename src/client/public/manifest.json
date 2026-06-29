@@ -1,0 +1,22 @@
+{
+  "name": "网易云音乐抓包工具",
+  "short_name": "抓包工具",
+  "description": "网易云音乐客户端抓包与调试工具",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#f0f2f5",
+  "theme_color": "#C20C0C",
+  "categories": ["developer tools", "utilities"],
+  "icons": [
+    {
+      "src": "/icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png"
+    },
+    {
+      "src": "/icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png"
+    }
+  ]
+}

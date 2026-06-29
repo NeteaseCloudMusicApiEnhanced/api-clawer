@@ -311,6 +311,15 @@ hook.request.before = (ctx) => {
 							break;
 					}
 					netease.path = netease.path.replace(/\/\d*$/, '');
+					// Save original URL path for toggle display and normalize prefixes
+					if (netease.crypto === 'eapi') {
+						netease.rawPath = url.pathname || url.path;
+					} else if (netease.crypto === 'xeapi') {
+						netease.rawPath = url.pathname || url.path;
+						if (netease.path.startsWith('/xeapi/')) {
+							netease.path = netease.path.replace(/^\/xeapi\//, '/api/');
+						}
+					}
 					ctx.netease = netease;
 					console.log(netease.path, netease.param) // 这里输出了网易云音乐的抓包数据, 重点看这里
 				}
@@ -328,10 +337,12 @@ hook.request.before = (ctx) => {
 		(url.path.startsWith('/weapi/') || url.path.startsWith('/api/'))
 	) {
 		req.headers['X-Real-IP'] = '118.88.88.88';
+		const weapiUrlPath = url.path;
 		ctx.netease = {
 			crypto: url.path.startsWith('/weapi/') ? 'weapi' : 'api',
 			web: true,
-			path: url.path
+			rawPath: url.path.startsWith('/weapi/') ? weapiUrlPath : undefined,
+			path: weapiUrlPath
 				.replace(/^\/weapi\//, '/api/')
 				.split('?')
 				.shift() // remove the query parameters
@@ -400,10 +411,12 @@ hook.request.after = (ctx) => {
 				const dataToSend = {
 					timestamp: new Date().toISOString(),
 					path: netease.path,
+					rawPath: netease.rawPath || undefined,
 					crypto: netease.crypto || null,
 					param: netease.param,
 					response: netease.jsonBody,
-					statusCode: proxyRes.statusCode
+					statusCode: proxyRes.statusCode,
+					method: req.method
 				};
 				axios.post(`http://localhost:${process.env.PORT || 3000}/api/capture`, dataToSend)
 					.catch(err => logger.error('Failed to send data to frontend:', err));
@@ -413,11 +426,13 @@ hook.request.after = (ctx) => {
 				const dataToSend = {
 					timestamp: new Date().toISOString(),
 					path: netease.path,
+					rawPath: netease.rawPath || undefined,
 					crypto: netease.crypto || null,
 					param: netease.param,
 					response: null,
 					statusCode: proxyRes.statusCode,
-					error: error.message
+					error: error.message,
+					method: req.method
 				};
 				axios.post(`http://localhost:${process.env.PORT || 3000}/api/capture`, dataToSend)
 					.catch(err => logger.error('Failed to send data to frontend:', err));
