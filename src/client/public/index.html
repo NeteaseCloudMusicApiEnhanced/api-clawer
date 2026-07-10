@@ -583,6 +583,138 @@
     }
     .empty-list p { margin-bottom: 4px; }
 
+    /* ======================== Headers Table ======================== */
+    .headers-table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 12px;
+      font-family: 'JetBrains Mono', 'Fira Code', 'Courier New', monospace;
+    }
+    .headers-table th,
+    .headers-table td {
+      text-align: left;
+      padding: 5px 10px;
+      border-bottom: 1px solid var(--border);
+      word-break: break-all;
+    }
+    .headers-table th {
+      color: var(--muted);
+      font-weight: 500;
+      width: 180px;
+      min-width: 120px;
+      background: var(--code-bg);
+    }
+    .headers-table td {
+      color: var(--fg);
+    }
+    .headers-table tr:hover {
+      background: var(--hover-bg);
+    }
+    .headers-table .header-key {
+      color: var(--accent);
+      font-weight: 600;
+    }
+
+    /* ======================== Filter Chips ======================== */
+    .filter-group {
+      display: flex;
+      align-items: center;
+      gap: 4px;
+      flex-wrap: wrap;
+    }
+    .filter-chip {
+      padding: 2px 8px;
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      font-size: 11px;
+      cursor: pointer;
+      background: transparent;
+      color: var(--muted);
+      transition: all var(--transition);
+      white-space: nowrap;
+    }
+    .filter-chip:hover {
+      border-color: var(--accent);
+      color: var(--fg-secondary);
+    }
+    .filter-chip.active {
+      background: var(--accent-light);
+      border-color: var(--accent);
+      color: var(--accent);
+      font-weight: 600;
+    }
+    .filter-sep {
+      width: 1px;
+      height: 18px;
+      background: var(--border);
+      margin: 0 4px;
+      flex-shrink: 0;
+    }
+
+    /* ======================== Duration Badge ======================== */
+    .duration-badge {
+      font-size: 10px;
+      color: var(--muted);
+      font-family: 'JetBrains Mono', 'Courier New', monospace;
+    }
+    .duration-badge.slow { color: var(--warning); }
+    .duration-badge.very-slow { color: var(--accent); }
+
+    /* ======================== Auto Scroll Toggle ======================== */
+    .auto-scroll-btn {
+      background: none;
+      border: 1px solid var(--border);
+      border-radius: var(--radius-sm);
+      color: var(--muted);
+      font-size: 10px;
+      padding: 3px 7px;
+      cursor: pointer;
+      transition: all var(--transition);
+      white-space: nowrap;
+    }
+    .auto-scroll-btn.active {
+      border-color: var(--accent);
+      color: var(--accent);
+      background: var(--accent-light);
+    }
+
+    /* ======================== Batch Ops ======================== */
+    .batch-bar {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      padding: 6px 18px;
+      border-bottom: 1px solid var(--border);
+      background: var(--status-bg);
+      font-size: 12px;
+      flex-shrink: 0;
+      transition: border-color var(--transition);
+    }
+    .batch-bar .batch-count {
+      color: var(--muted);
+      margin-right: auto;
+    }
+    .batch-bar .batch-count strong { color: var(--fg); }
+    .item-checkbox {
+      flex-shrink: 0;
+      margin-top: 2px;
+      accent-color: var(--accent);
+      cursor: pointer;
+    }
+    .sort-btn {
+      background: none;
+      border: none;
+      color: var(--muted);
+      font-size: 11px;
+      cursor: pointer;
+      padding: 2px 6px;
+      border-radius: 3px;
+      transition: all var(--transition);
+      font-family: inherit;
+    }
+    .sort-btn:hover { color: var(--fg); background: var(--hover-bg); }
+    .sort-btn.active { color: var(--accent); font-weight: 600; }
+
     /* ======================== Detail Panel ======================== */
     .detail-panel {
       background: var(--panel);
@@ -885,6 +1017,7 @@
         </span>
         <span class="status-stat">
           <strong id="capture-count">0</strong> 条记录
+          <span id="stats-breakdown" style="margin-left:8px;font-size:11px;"></span>
         </span>
       </div>
 
@@ -896,6 +1029,60 @@
         </div>
         <button class="tool-btn" onclick="exportAll()" title="导出所有数据为 JSON">导出</button>
         <button class="tool-btn danger" onclick="confirmClear()" title="清空所有抓包数据">清空</button>
+        <button class="auto-scroll-btn active" id="auto-scroll-btn" onclick="toggleAutoScroll()" title="自动滚动到新数据">自动滚动</button>
+        <button class="auto-scroll-btn" id="full-capture-btn" onclick="toggleFullCapture()" title="切换完整抓包模式（捕获全部域名流量）">完整抓包</button>
+      </div>
+      <!-- Filter Bar -->
+      <div class="toolbar" style="padding:5px 18px;flex-wrap:wrap;">
+        <div class="filter-group" id="method-filters">
+          <span style="font-size:10px;color:var(--muted);margin-right:2px;">方法</span>
+          <button class="filter-chip active" data-group="method" data-value="" onclick="setFilter('method', '')">全部</button>
+          <button class="filter-chip" data-group="method" data-value="GET" onclick="setFilter('method', 'GET')">GET</button>
+          <button class="filter-chip" data-group="method" data-value="POST" onclick="setFilter('method', 'POST')">POST</button>
+        </div>
+        <div class="filter-sep"></div>
+        <div class="filter-group" id="status-filters">
+          <span style="font-size:10px;color:var(--muted);margin-right:2px;">状态</span>
+          <button class="filter-chip active" data-group="status" data-value="" onclick="setFilter('status', '')">全部</button>
+          <button class="filter-chip" data-group="status" data-value="2" onclick="setFilter('status', '2')">2xx</button>
+          <button class="filter-chip" data-group="status" data-value="4" onclick="setFilter('status', '4')">4xx</button>
+          <button class="filter-chip" data-group="status" data-value="5" onclick="setFilter('status', '5')">5xx</button>
+        </div>
+        <div class="filter-sep"></div>
+        <div class="filter-group" id="crypto-filters">
+          <span style="font-size:10px;color:var(--muted);margin-right:2px;">加密</span>
+          <button class="filter-chip active" data-group="crypto" data-value="" onclick="setFilter('crypto', '')">全部</button>
+          <button class="filter-chip" data-group="crypto" data-value="eapi" onclick="setFilter('crypto', 'eapi')">EAPI</button>
+          <button class="filter-chip" data-group="crypto" data-value="xeapi" onclick="setFilter('crypto', 'xeapi')">XEAPI</button>
+          <button class="filter-chip" data-group="crypto" data-value="linuxapi" onclick="setFilter('crypto', 'linuxapi')">LinuxAPI</button>
+          <button class="filter-chip" data-group="crypto" data-value="weapi" onclick="setFilter('crypto', 'weapi')">WEAPI</button>
+          <button class="filter-chip" data-group="crypto" data-value="api" onclick="setFilter('crypto', 'api')">API</button>
+        </div>
+        <div class="filter-sep"></div>
+        <div class="filter-group" id="netease-filter">
+          <button class="filter-chip active" data-group="netease" data-value="" onclick="setFilter('netease', '')">全部</button>
+          <button class="filter-chip" data-group="netease" data-value="true" onclick="setFilter('netease', 'true')">仅网易云</button>
+        </div>
+        <div class="filter-sep"></div>
+        <div class="filter-group">
+          <span style="font-size:10px;color:var(--muted);margin-right:2px;">排序</span>
+          <button class="sort-btn" data-sort="time" onclick="setSort('time')">时间</button>
+          <button class="sort-btn" data-sort="duration" onclick="setSort('duration')">耗时</button>
+          <button class="sort-btn" data-sort="path" onclick="setSort('path')">路径</button>
+        </div>
+      </div>
+
+      <!-- Batch Bar -->
+      <div class="batch-bar" id="batch-bar">
+        <label style="display:flex;align-items:center;gap:4px;cursor:pointer;">
+          <input type="checkbox" id="select-all-checkbox" onchange="toggleSelectAll(this.checked)" style="accent-color:var(--accent);">
+          <span style="font-size:12px;">全选</span>
+        </label>
+        <span class="batch-count">
+          已选 <strong id="selected-count">0</strong> 条
+        </span>
+        <button class="tool-btn danger" onclick="batchDelete()" style="font-size:11px;padding:3px 8px;">批量删除</button>
+        <button class="tool-btn" onclick="batchExport()" style="font-size:11px;padding:3px 8px;">导出选中</button>
       </div>
 
       <!-- Capture List -->
@@ -931,11 +1118,40 @@
     </div>
   </div>
 
+  <!-- ======================== REPLAY MODAL ======================== -->
+  <div class="modal-overlay" id="replay-modal">
+    <div class="modal" style="min-width:480px;max-width:640px;">
+      <h3 id="replay-title" style="margin-bottom:12px;">重放请求</h3>
+      <div style="margin-bottom:12px;font-size:12px;color:var(--fg-secondary);">
+        <span id="replay-method" style="font-weight:600;color:var(--accent);"></span>
+        <span id="replay-path" style="margin-left:8px;"></span>
+        <span id="replay-crypto" style="margin-left:8px;color:var(--muted);"></span>
+      </div>
+      <div style="margin-bottom:12px;">
+        <label style="font-size:12px;font-weight:600;color:var(--fg);display:block;margin-bottom:4px;">请求参数 (可修改):</label>
+        <textarea id="replay-params" style="width:100%;height:200px;padding:10px;border:1px solid var(--border);border-radius:var(--radius-sm);background:var(--code-bg);color:var(--fg);font-family:'JetBrains Mono','Courier New',monospace;font-size:12px;resize:vertical;outline:none;"></textarea>
+      </div>
+      <div class="modal-buttons">
+        <button class="modal-btn modal-btn-cancel" onclick="closeReplayModal()">取消</button>
+        <button class="modal-btn modal-btn-confirm" id="replay-exec-btn" onclick="executeReplay()" style="background:var(--success);">执行重放</button>
+      </div>
+    </div>
+  </div>
+
   <script>
     // ======================== State ========================
     let capturedData = [];
     let selectedIndex = -1;
     let searchQuery = '';
+    var filterMethod = '';
+    var filterStatus = '';
+    var filterCrypto = '';
+    var filterNetease = '';
+    let autoScroll = true;
+    let eventSource = null;
+    let selectedItems = new Set();
+    let sortBy = 'time';
+    let sortAsc = false;
 
     // ======================== Theme ========================
     function getPreferredTheme() {
@@ -1003,6 +1219,9 @@
     document.getElementById('modal-overlay').addEventListener('click', (e) => {
       if (e.target.id === 'modal-overlay') closeModal();
     });
+    document.addEventListener('click', (e) => {
+      if (e.target.id === 'replay-modal') closeReplayModal();
+    });
 
     // ======================== Search ========================
     function onSearchInput() {
@@ -1010,16 +1229,209 @@
       renderCaptureList();
     }
 
-    function matchesSearch(item) {
-      if (!searchQuery) return true;
-      const path = (item.path || '').toLowerCase();
-      if (path.includes(searchQuery)) return true;
-      const param = item.param;
-      if (param && typeof param === 'object') {
-        const paramStr = JSON.stringify(param).toLowerCase();
-        if (paramStr.includes(searchQuery)) return true;
+    function matchesFilters(item) {
+      // 搜索过滤
+      if (searchQuery) {
+        const q = searchQuery;
+        // 基础字段
+        if ((item.path || '').toLowerCase().includes(q)) return true;
+        if ((item.hostname || '').toLowerCase().includes(q)) return true;
+        if ((item.rawPath || '').toLowerCase().includes(q)) return true;
+        if ((item.crypto || '').toLowerCase().includes(q)) return true;
+        if ((item.method || '').toLowerCase().includes(q)) return true;
+        if (String(item.statusCode || '').includes(q)) return true;
+        if ((item.error || '').toLowerCase().includes(q)) return true;
+        // 对象字段 -> JSON 字符串搜索
+        const objFields = ['param', 'response', 'requestHeaders', 'responseHeaders'];
+        for (const key of objFields) {
+          const val = item[key];
+          if (val && typeof val === 'object') {
+            try {
+              if (JSON.stringify(val).toLowerCase().includes(q)) return true;
+            } catch (_) {}
+          }
+        }
+        // 响应体纯文本
+        if (item.responseBody && item.responseBody.toLowerCase().includes(q)) return true;
+        return false;
       }
-      return false;
+      return true;
+    }
+    function matchesFiltersStrict(item) {
+      // 方法过滤
+      if (filterMethod && (item.method || '').toUpperCase() !== filterMethod) return false;
+      // 状态码过滤
+      if (filterStatus) {
+        const codeGroup = String(item.statusCode || '')[0];
+        if (codeGroup !== filterStatus) return false;
+      }
+      // 加密类型过滤
+      if (filterCrypto && (item.crypto || '') !== filterCrypto) return false;
+      // 网易云过滤
+      if (filterNetease === 'true' && !item.isNetease) return false;
+      return true;
+    }
+
+    // ======================== Filter Functions ========================
+    function setFilter(group, value) {
+      const key = 'filter' + group.charAt(0).toUpperCase() + group.slice(1);
+      if (window[key] === value) return;
+      window[key] = value;
+      // 更新 chip 高亮
+      document.querySelectorAll(`.filter-chip[data-group="${group}"]`).forEach(el => {
+        el.classList.toggle('active', el.dataset.value === value);
+      });
+      renderCaptureList();
+    }
+
+    function toggleFullCapture() {
+      const btn = document.getElementById('full-capture-btn');
+      const newState = !btn.classList.contains('active');
+      fetch('/api/settings', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ fullCapture: newState }),
+      })
+      .then(r => r.json())
+      .then(data => {
+        if (data.success) {
+          btn.classList.toggle('active', data.fullCapture);
+          btn.textContent = data.fullCapture ? '完整抓包' : '普通模式';
+          showToast(data.fullCapture ? '完整抓包模式已开启，将捕获所有域名流量' : '已切换为普通模式，仅捕获网易云域名', 'info');
+        }
+      })
+      .catch(e => showToast('设置失败: ' + e.message, 'error'));
+    }
+
+    function toggleAutoScroll() {
+      autoScroll = !autoScroll;
+      const btn = document.getElementById('auto-scroll-btn');
+      btn.classList.toggle('active', autoScroll);
+      btn.textContent = autoScroll ? '自动滚动' : '手动';
+    }
+
+    // ======================== Sort Functions ========================
+    function setSort(field) {
+      if (sortBy === field) {
+        sortAsc = !sortAsc;
+      } else {
+        sortBy = field;
+        sortAsc = field === 'time' ? false : false;
+      }
+      document.querySelectorAll('.sort-btn').forEach(el => {
+        const isActive = el.dataset.sort === sortBy;
+        el.classList.toggle('active', isActive);
+        if (isActive) {
+          el.textContent = { time: '时间', duration: '耗时', path: '路径' }[sortBy] + (sortAsc ? ' ↑' : ' ↓');
+        } else {
+          el.textContent = { time: '时间', duration: '耗时', path: '路径' }[el.dataset.sort];
+        }
+      });
+      renderCaptureList();
+    }
+
+    function getSortedData(data) {
+      const arr = [...data];
+      arr.sort((a, b) => {
+        let cmp = 0;
+        switch(sortBy) {
+          case 'time':
+            cmp = (a.timestamp || '').localeCompare(b.timestamp || '');
+            break;
+          case 'duration':
+            cmp = (a.duration || 0) - (b.duration || 0);
+            break;
+          case 'path':
+            cmp = (a.path || '').localeCompare(b.path || '');
+            break;
+        }
+        return sortAsc ? cmp : -cmp;
+      });
+      return arr;
+    }
+
+    // ======================== Batch Functions ========================
+    function toggleSelectAll(checked) {
+      const filtered = capturedData.filter(item => matchesFilters(item) && matchesFiltersStrict(item));
+      filtered.forEach(item => {
+        const idx = capturedData.indexOf(item);
+        if (checked) selectedItems.add(idx);
+        else selectedItems.delete(idx);
+      });
+      updateBatchUI();
+      renderCaptureList();
+    }
+
+    function toggleItemSelection(index) {
+      if (selectedItems.has(index)) selectedItems.delete(index);
+      else selectedItems.add(index);
+      updateBatchUI();
+      renderCaptureList();
+    }
+
+    function updateBatchUI() {
+      const count = selectedItems.size;
+      document.getElementById('selected-count').textContent = count;
+      const allCheck = document.getElementById('select-all-checkbox');
+      if (allCheck) {
+        const filtered = capturedData.filter(item => matchesFilters(item) && matchesFiltersStrict(item));
+        allCheck.checked = filtered.length > 0 && filtered.every(item => selectedItems.has(capturedData.indexOf(item)));
+        allCheck.indeterminate = count > 0 && !allCheck.checked;
+      }
+    }
+
+    function batchDelete() {
+      if (selectedItems.size === 0) return showToast('请先选择要删除的记录', 'info');
+      showConfirm(
+        '批量删除',
+        '确定要删除选中的 ' + selectedItems.size + ' 条记录吗？',
+        () => {
+          const sorted = [...selectedItems].sort((a,b) => b - a);
+          sorted.forEach(idx => capturedData.splice(idx, 1));
+          selectedItems.clear();
+          if (selectedIndex >= capturedData.length) selectedIndex = -1;
+          renderCaptureList();
+          updateBatchUI();
+          if (selectedIndex === -1) {
+            document.getElementById('detail-panel').innerHTML = `
+              <div class="no-selection">
+                <div class="ns-icon">[ -- ]</div>
+                <div class="ns-text">选择一个抓包记录查看详情</div>
+              </div>
+            `;
+          }
+          showToast('已删除 ' + sorted.length + ' 条记录', 'info');
+        }
+      );
+    }
+
+    function batchExport() {
+      if (selectedItems.size === 0) return showToast('请先选择要导出的记录', 'info');
+      const selected = [...selectedItems].sort((a,b) => a-b).map(idx => capturedData[idx]).filter(Boolean);
+      const blob = new Blob([formatJson(selected)], { type: 'application/json' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = 'netease-selected-' + new Date().toISOString().slice(0,19).replace(/[:-]/g,'') + '.json';
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+      showToast('已导出 ' + selected.length + ' 条记录', 'success');
+    }
+
+    function formatDuration(ms) {
+      if (ms == null) return '';
+      if (ms < 1000) return ms + 'ms';
+      return (ms / 1000).toFixed(2) + 's';
+    }
+
+    function getDurationBadge(ms) {
+      if (ms == null) return '';
+      let cls = '';
+      if (ms > 3000) cls = 'very-slow';
+      else if (ms > 1000) cls = 'slow';
+      return `<span class="duration-badge ${cls}">${formatDuration(ms)}</span>`;
     }
 
     // ======================== Crypto helpers ========================
@@ -1059,45 +1471,57 @@
       const container = document.getElementById('capture-list');
       const countEl = document.getElementById('capture-count');
 
-      const filtered = capturedData.filter(matchesSearch);
+      const filtered = capturedData.filter(item => matchesFilters(item) && matchesFiltersStrict(item));
+      const sorted = getSortedData(filtered);
 
       countEl.textContent = capturedData.length;
+      updateBatchUI();
 
-      if (filtered.length === 0) {
+      if (sorted.length === 0) {
         container.innerHTML = `
           <div class="empty-list">
-            <div class="empty-icon">${searchQuery ? '[ 搜索 ]' : '[ -- ]'}</div>
-            <p>${searchQuery ? '没有匹配的抓包记录' : '暂无抓包数据'}</p>
-            <p style="font-size:12px;opacity:0.7;">${searchQuery ? '试试其他关键词？' : '请设置代理并开始使用'}</p>
+            <div class="empty-icon">${searchQuery || filterMethod || filterStatus || filterCrypto ? '[ 筛选 ]' : '[ -- ]'}</div>
+            <p>${searchQuery || filterMethod || filterStatus || filterCrypto ? '没有匹配的抓包记录' : '暂无抓包数据'}</p>
+            <p style="font-size:12px;opacity:0.7;">${searchQuery || filterMethod || filterStatus || filterCrypto ? '试试其他筛选条件？' : '请设置代理并开始使用'}</p>
           </div>
         `;
         return;
       }
 
-      container.innerHTML = filtered.map((item) => {
+      container.innerHTML = sorted.map((item) => {
         const realIdx = capturedData.indexOf(item);
         const isActive = realIdx === selectedIndex;
+        const isChecked = selectedItems.has(realIdx);
         const cryptoLabel = item.crypto ? getCryptoLabel(item.crypto) : '';
         const methodBadge = getMethodBadge(item.method);
         const statusBadge = getStatusBadge(item.statusCode);
         const time = formatTime(item.timestamp);
+        const durBadge = getDurationBadge(item.duration);
+
+        const displayPath = item.isNetease ? (item.path || 'Unknown') : (item.hostname ? item.hostname + (item.path ? item.path.replace(/^https?:\/\/[^\/]+/, '') : '') : (item.path || 'Unknown'));
+        const isNeteaseBadge = item.isNetease ? '<span style="font-size:9px;color:var(--accent);border:1px solid var(--accent-border);border-radius:3px;padding:0 4px;margin-left:2px;">网易云</span>' : '';
 
         return `
           <div class="capture-list-item ${isActive ? 'active' : ''}"
-               onclick="selectCapture(${realIdx})"
-               data-index="${realIdx}">
-            <div class="item-main">
+               data-index="${realIdx}"
+               style="display:flex;align-items:flex-start;gap:6px;">
+            <input type="checkbox" class="item-checkbox" ${isChecked ? 'checked' : ''}
+                   onclick="event.stopPropagation();toggleItemSelection(${realIdx})">
+            <div style="flex:1;min-width:0;cursor:pointer;" onclick="selectCapture(${realIdx})">
               <div class="item-top">
                 ${methodBadge}
-                <span class="item-path">${escapeHtml(item.path || 'Unknown')}</span>
+                <span class="item-path">${escapeHtml(displayPath)}</span>
                 ${cryptoLabel}
+                ${isNeteaseBadge}
               </div>
               <div style="display:flex;align-items:center;gap:6px;margin-top:2px;">
                 ${statusBadge}
                 <span class="item-time">${time}</span>
+                ${durBadge}
+                ${item.replay ? '<span style="font-size:9px;color:var(--muted);border:1px solid var(--border);border-radius:3px;padding:0 4px;margin-left:2px;">Replay</span>' : ''}
               </div>
             </div>
-            <button class="item-del" onclick="event.stopPropagation();deleteItem(${realIdx})" title="删除">x</button>
+            <button class="item-del" onclick="event.stopPropagation();deleteItem(${realIdx})" title="删除" style="margin-top:1px;">x</button>
           </div>
         `;
       }).join('');
@@ -1151,39 +1575,64 @@
       const methodBadge = getMethodBadge(item.method);
       const statusBadge = getStatusBadge(item.statusCode);
       const fullDate = formatFullDate(item.timestamp);
+      const durText = item.duration != null ? formatDuration(item.duration) : '';
+      const durCls = item.duration > 3000 ? 'very-slow' : (item.duration > 1000 ? 'slow' : '');
+      const isNeteaseBadge = item.isNetease ? '<span class="crypto-badge crypto-badge-eapi" style="font-size:10px;">网易云</span>' : '<span class="crypto-badge crypto-badge-api" style="font-size:10px;">通用</span>';
 
       const filteredParam = filterParam(item.param);
+      const reqHeaders = item.requestHeaders || {};
+      const resHeaders = item.responseHeaders || {};
+      const reqHCount = countKeys(reqHeaders);
+      const resHCount = countKeys(resHeaders);
+      
+      // 非网易云请求显示完整 URL
+      const detailPath = item.isNetease ? (getDisplayPath(item) || 'Unknown') : (item.path || 'Unknown');
+      const detailHost = item.isNetease ? '' : (item.hostname ? escapeHtml(item.hostname) + ' ' : '');
 
       panel.innerHTML = `
         <div class="detail-header">
           <div class="dh-top">
             ${methodBadge}
-            <h2>${escapeHtml(getDisplayPath(item) || 'Unknown')}</h2>
+            <h2>${escapeHtml(detailPath)}</h2>
             ${item.rawPath ? `<button class="path-toggle" onclick="event.stopPropagation();togglePathDisplay(${index})" title="切换路径显示">${showRawPath ? '/api/' : escapeHtml(getRawPrefix(item.rawPath))}</button>` : ''}
           </div>
           <div class="dh-meta">
             ${statusBadge}
             ${cryptoLabel}
+            ${isNeteaseBadge}
+            <span class="duration-badge ${durCls}">${durText}</span>
             <span>${cryptoName ? cryptoName : ''}</span>
             <span>${fullDate}</span>
+            ${detailHost ? `<span style="color:var(--muted);font-size:11px;">${detailHost}</span>` : ''}
           </div>
         </div>
 
         <div class="detail-actions">
           <button class="action-btn" onclick="copyPath(${index})">[复制] 路径</button>
           <button class="action-btn" onclick="copyCurl(${index})">[复制] cURL</button>
-          <button class="action-btn" onclick="copyParam(${index})">[复制] 参数</button>
+          ${item.param ? `<button class="action-btn" onclick="copyParam(${index})">[复制] 参数</button>` : ''}
           <button class="action-btn" onclick="copyResponse(${index})">[复制] 响应</button>
+          <button class="action-btn" onclick="copyHeaders(${index}, 'req')">[复制] 请求头</button>
+          <button class="action-btn" onclick="copyHeaders(${index}, 'res')">[复制] 响应头</button>
+          ${item.isNetease ? `<button class="action-btn" onclick="replayCapture(${index})" style="border-color:var(--success);color:var(--success);">[重放]</button>` : ''}
         </div>
 
         <div class="detail-tabs" id="detail-tabs">
-          <button class="detail-tab ${activeTab === 'params' ? 'active' : ''}" onclick="switchTab('params')">
+          ${item.param ? `<button class="detail-tab ${activeTab === 'params' ? 'active' : ''}" onclick="switchTab('params')">
             请求参数
             <span class="tab-count">${countKeys(filteredParam)}</span>
+          </button>` : ''}
+          <button class="detail-tab ${activeTab === 'reqHeaders' ? 'active' : ''}" onclick="switchTab('reqHeaders')">
+            请求头
+            <span class="tab-count">${reqHCount}</span>
+          </button>
+          <button class="detail-tab ${activeTab === 'resHeaders' ? 'active' : ''}" onclick="switchTab('resHeaders')">
+            响应头
+            <span class="tab-count">${resHCount}</span>
           </button>
           <button class="detail-tab ${activeTab === 'response' ? 'active' : ''}" onclick="switchTab('response')">
             响应数据
-            <span class="tab-count">${item.response ? countKeys(item.response) : 0}</span>
+            <span class="tab-count">${item.response ? countKeys(item.response) : (item.responseBody ? '1' : 0)}</span>
           </button>
           <button class="detail-tab ${activeTab === 'raw' ? 'active' : ''}" onclick="switchTab('raw')">
             原始 JSON
@@ -1196,6 +1645,17 @@
       `;
     }
 
+    function renderHeadersTable(headers) {
+      if (!headers || countKeys(headers) === 0) {
+        return '<div style="text-align:center;padding:20px;color:var(--muted);">暂无请求头数据</div>';
+      }
+      const rows = Object.entries(headers).map(([key, value]) => {
+        const displayValue = Array.isArray(value) ? value.join(', ') : String(value);
+        return `<tr><td class="header-key">${escapeHtml(key)}</td><td>${escapeHtml(displayValue)}</td></tr>`;
+      }).join('');
+      return `<table class="headers-table"><tbody>${rows}</tbody></table>`;
+    }
+
     function renderTabContent(item, filteredParam) {
       switch(activeTab) {
         case 'params':
@@ -1205,8 +1665,22 @@
             </strong>
             <pre><code>${formatJson(filteredParam)}</code></pre>
           `;
+        case 'reqHeaders':
+          return `
+            <strong style="font-size:12px;color:var(--muted);display:block;margin-bottom:8px;">
+              请求 Headers (${countKeys(item.requestHeaders)} 个)
+            </strong>
+            ${renderHeadersTable(item.requestHeaders)}
+          `;
+        case 'resHeaders':
+          return `
+            <strong style="font-size:12px;color:var(--muted);display:block;margin-bottom:8px;">
+              响应 Headers (${countKeys(item.responseHeaders)} 个)
+            </strong>
+            ${renderHeadersTable(item.responseHeaders)}
+          `;
         case 'response':
-          if (!item.response) {
+          if (!item.response && !item.responseBody) {
             return `
               <div style="text-align:center;padding:30px;color:var(--muted);">
                 <div style="font-size:24px;margin-bottom:8px;opacity:0.35;">[ 空 ]</div>
@@ -1215,18 +1689,29 @@
               </div>
             `;
           }
-          return `
-            <strong style="font-size:12px;color:var(--muted);display:block;margin-bottom:8px;">
-              响应数据 (${countKeys(item.response)} 个字段)
-              <span style="font-weight:400;margin-left:8px;">
-                <label style="cursor:pointer;user-select:none;">
-                  <input type="checkbox" id="toggle-raw" onchange="toggleResponseRaw(${capturedData.indexOf(item)})" style="vertical-align:middle;">
-                  <span style="vertical-align:middle;">原始格式</span>
-                </label>
-              </span>
-            </strong>
-            <pre><code id="response-content">${formatJson(item.response)}</code></pre>
-          `;
+          if (item.response) {
+            return `
+              <strong style="font-size:12px;color:var(--muted);display:block;margin-bottom:8px;">
+                响应数据 (${countKeys(item.response)} 个字段)
+                <span style="font-weight:400;margin-left:8px;">
+                  <label style="cursor:pointer;user-select:none;">
+                    <input type="checkbox" id="toggle-raw" onchange="toggleResponseRaw(${capturedData.indexOf(item)})" style="vertical-align:middle;">
+                    <span style="vertical-align:middle;">原始格式</span>
+                  </label>
+                </span>
+              </strong>
+              <pre><code id="response-content">${formatJson(item.response)}</code></pre>
+            `;
+          }
+          if (item.responseBody) {
+            return `
+              <strong style="font-size:12px;color:var(--muted);display:block;margin-bottom:8px;">
+                响应体 (文本)
+              </strong>
+              <pre><code>${escapeHtml(item.responseBody)}</code></pre>
+            `;
+          }
+          return '';
         case 'raw':
           return `
             <strong style="font-size:12px;color:var(--muted);display:block;margin-bottom:8px;">
@@ -1288,8 +1773,9 @@
 
     function copyPath(index) {
       const item = capturedData[index];
-      const path = getDisplayPath(item);
-      if (!item || !path) return showToast('无路径可复制', 'error');
+      if (!item) return showToast('无数据', 'error');
+      const path = item.isNetease ? getDisplayPath(item) : (item.path || '');
+      if (!path) return showToast('无路径可复制', 'error');
       copyToClipboard(path, '路径已复制');
     }
 
@@ -1312,23 +1798,44 @@
       copyToClipboard(formatJson(item), '原始数据已复制');
     }
 
+    function copyHeaders(index, type) {
+      const item = capturedData[index];
+      if (!item) return;
+      const headers = type === 'req' ? item.requestHeaders : item.responseHeaders;
+      if (!headers || countKeys(headers) === 0) return showToast('无头部数据可复制', 'error');
+      const text = Object.entries(headers)
+        .map(([k, v]) => k + ': ' + (Array.isArray(v) ? v.join(', ') : v))
+        .join('\n');
+      copyToClipboard(text, (type === 'req' ? '请求头' : '响应头') + '已复制');
+    }
+
     function copyCurl(index) {
       const item = capturedData[index];
       if (!item) return showToast('数据不完整', 'error');
       const method = (item.method || 'POST').toUpperCase();
-      const url = 'https://music.163.com' + (getDisplayPath(item) || '');
+      let url;
+      if (item.isNetease) {
+        url = 'https://music.163.com' + (getDisplayPath(item) || '');
+      } else {
+        url = item.path || '';
+      }
       let curl = 'curl -X ' + method + ' \'' + url + '\'';
 
-      curl += ' \\\n  -H \'Content-Type: application/json\'';
-
-      const filtered = filterParam(item.param);
-      if (filtered && Object.keys(filtered).length > 0) {
-        const jsonData = JSON.stringify(filtered);
-        const escaped = jsonData.replace(/'/g, '\'\\\'\'');
-        curl += ' \\\n  -d \'' + escaped + '\'';
+      // 添加请求头
+      if (item.requestHeaders) {
+        Object.entries(item.requestHeaders).forEach(([k, v]) => {
+          if (['host', 'content-length', 'proxy-connection'].includes(k.toLowerCase())) return;
+          curl += ' \\\n  -H \'' + k + ': ' + (Array.isArray(v) ? v.join(', ') : v).replace(/'/g, '\'\\\'\'') + '\'';
+        });
       }
 
-      curl += ' \\\n  --insecure';
+      if (item.param) {
+        const filtered = filterParam(item.param);
+        if (Object.keys(filtered).length > 0) {
+          const jsonData = JSON.stringify(filtered);
+          curl += ' \\\n  -d \'' + jsonData.replace(/'/g, '\'\\\'\'') + '\'';
+        }
+      }
 
       copyToClipboard(curl, 'cURL 已复制');
     }
@@ -1385,6 +1892,82 @@
             .catch(() => showToast('清空请求失败', 'error'));
         }
       );
+    }
+
+    // ======================== Replay ========================
+    let replayFormData = {};
+    let replayIndex = -1;
+
+    function replayCapture(index) {
+      const item = capturedData[index];
+      if (!item) return showToast('数据不完整', 'error');
+      replayIndex = index;
+      replayFormData = JSON.parse(JSON.stringify(item.param || {}));
+      showReplayModal(item);
+    }
+
+    function showReplayModal(item) {
+      const overlay = document.getElementById('replay-modal');
+      document.getElementById('replay-title').textContent = '重放请求: ' + (item.path || 'Unknown');
+      document.getElementById('replay-path').textContent = item.path || '';
+      document.getElementById('replay-method').textContent = item.method || 'POST';
+      document.getElementById('replay-crypto').textContent = getCryptoName(item.crypto);
+      document.getElementById('replay-params').value = formatJson(replayFormData);
+      overlay.classList.add('show');
+    }
+
+    function closeReplayModal() {
+      document.getElementById('replay-modal').classList.remove('show');
+    }
+
+    function executeReplay() {
+      const item = capturedData[replayIndex];
+      if (!item) return;
+      
+      // 解析用户修改后的参数
+      try {
+        replayFormData = JSON.parse(document.getElementById('replay-params').value);
+      } catch (e) {
+        showToast('参数格式错误，请检查 JSON', 'error');
+        return;
+      }
+
+      const btn = document.getElementById('replay-exec-btn');
+      btn.disabled = true;
+      btn.textContent = '重放中...';
+
+      fetch('/api/replay', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          path: item.path,
+          method: item.method,
+          params: replayFormData,
+          crypto: item.crypto,
+          rawPath: item.rawPath,
+          requestHeaders: item.requestHeaders,
+        })
+      })
+      .then(r => r.json())
+      .then(result => {
+        closeReplayModal();
+        if (result.error) {
+          showToast('重放失败: ' + result.error, 'error');
+        } else {
+          showToast('重放成功！已添加到列表', 'success');
+          // 滚动到最新（重放的结果会追加到末尾）
+          if (capturedData.length > 0) {
+            selectCapture(capturedData.length - 1);
+          }
+        }
+      })
+      .catch(e => {
+        showToast('重放请求失败: ' + e.message, 'error');
+      })
+      .finally(() => {
+        btn.disabled = false;
+        btn.textContent = '执行重放';
+      });
     }
 
     function exportAll() {
@@ -1481,7 +2064,7 @@
 
     // ======================== SSE & Init ========================
     function setupSSE() {
-      const eventSource = new EventSource('/api/events');
+      eventSource = new EventSource('/api/events');
       const statusDot = document.getElementById('status-dot');
       const statusLabel = document.getElementById('status-label');
 
@@ -1491,10 +2074,15 @@
           statusDot.className = 'status-dot connected';
           statusLabel.textContent = '已连接';
 
+          const prevLen = capturedData.length;
           capturedData = data;
           renderCaptureList();
 
-          if (selectedIndex === -1 && data.length > 0) {
+          // 自动滚动到最新
+          if (autoScroll && data.length > prevLen && data.length > 0) {
+            const lastIdx = data.length - 1;
+            selectCapture(lastIdx);
+          } else if (selectedIndex === -1 && data.length > 0) {
             selectCapture(0);
           } else if (selectedIndex >= data.length) {
             selectedIndex = -1;
@@ -1517,6 +2105,38 @@
         statusDot.className = 'status-dot';
         statusLabel.textContent = '连接断开，正在重试...';
       };
+    }
+
+    function fetchSettings() {
+      fetch('/api/settings')
+        .then(r => r.json())
+        .then(data => {
+          const btn = document.getElementById('full-capture-btn');
+          if (btn) {
+            btn.classList.toggle('active', data.fullCapture);
+            btn.textContent = data.fullCapture ? '完整抓包' : '普通模式';
+          }
+        })
+        .catch(() => {});
+    }
+
+    function fetchStats() {
+      fetch('/api/stats')
+        .then(r => r.json())
+        .then(stats => {
+          const el = document.getElementById('stats-breakdown');
+          if (!el) return;
+          const parts = [];
+          if (stats.methods) {
+            const total = stats.total || 0;
+            const methods = Object.entries(stats.methods)
+              .sort((a,b) => b[1] - a[1])
+              .slice(0, 3);
+            parts.push(methods.map(([k,v]) => k + '=' + v).join(' '));
+          }
+          el.textContent = parts.length ? '| ' + parts.join(' | ') : '';
+        })
+        .catch(() => {});
     }
 
     function fetchVersion() {
@@ -1545,6 +2165,11 @@
       initResize();
       renderCaptureList();
       registerSW();
+      fetchStats();
+      fetchSettings();
+      setInterval(fetchStats, 5000);
+      // 初始化排序按钮状态
+      setSort('time');
     });
   </script>
 </body>

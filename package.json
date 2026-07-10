@@ -1,16 +1,23 @@
 {
-  "name": "api-clawer",
-  "version": "0.4.0",
+  "name": "ncm-api-clawer",
+  "version": "0.5.1",
   "description": "网易云音乐客户端抓包工具",
-  "main": "src/server/app.js",
+  "main": "bin/cli.js",
+  "bin": {
+    "api-clawer": "./bin/cli.js"
+  },
   "scripts": {
-    "start": "node src/index.js"
+    "start": "node bin/cli.js",
+    "test": "jest"
   },
   "keywords": [
     "netease",
     "music",
     "api",
-    "clawer"
+    "clawer",
+    "capture",
+    "proxy",
+    "mitm"
   ],
   "author": "",
   "license": "MIT",
@@ -23,5 +30,8 @@
     "pino": "^6.14.0",
     "pino-pretty": "^7.6.1",
     "ws": "^8.21.0"
+  },
+  "devDependencies": {
+    "jest": "^30.4.2"
   }
 }

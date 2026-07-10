@@ -98,8 +98,35 @@ const domainList = [
 	'interface3.music.163.com',
 ];
 
+/**
+ * 判断是否为网易云相关域名
+ */
+function isNeteaseHost(hostname) {
+	if (!hostname) return false;
+	const neteasePatterns = [
+		'music.163.com', 'music.126.net', 'vod.126.net',
+		'iplay.163.com', 'look.163.com', 'y.163.com',
+		'interface.music.163.com', '163yun.com',
+		'163jiasu.com', 'netease.com',
+	];
+	return neteasePatterns.some(p => hostname.includes(p));
+}
+
+/**
+ * 是否启用完整抓包模式 (非网易云流量也捕获)
+ */
+function isFullCapture() {
+	return global.fullCapture === true;
+}
+
 hook.request.before = (ctx) => {
 	const { req } = ctx;
+	// 记录请求开始时间和请求头
+	ctx.startTime = Date.now();
+	ctx.requestHeaders = { ...req.headers };
+	// 标记是否网易云
+	ctx.isNeteaseDomain = isNeteaseHost(req.headers.host);
+	
 	req.url =
 		(req.url.startsWith('http://')
 			? ''
@@ -111,12 +138,8 @@ hook.request.before = (ctx) => {
 					? req.headers.host
 					: null)) + req.url;
 	const url = parse(req.url);
-	if (
-		[url.hostname, req.headers.host].some((host) =>
-			isHost(host, 'music.163.com')
-		)
-	)
-		ctx.decision = 'proxy';
+	// 所有请求都走代理 (不再局限网易云)
+	ctx.decision = 'proxy';
 
 	if (process.env.NETEASE_COOKIE && url.path.includes('url')) {
 		var cookies = cookieToMap(req.headers.cookie);
@@ -321,7 +344,7 @@ hook.request.before = (ctx) => {
 						}
 					}
 					ctx.netease = netease;
-					console.log(netease.path, netease.param) // 这里输出了网易云音乐的抓包数据, 重点看这里
+					logger.info({ path: netease.path, params: netease.param }, 'Captured request')
 				}
 			})
 			.catch(
@@ -369,6 +392,12 @@ hook.request.after = (ctx) => {
 	const { req, proxyRes, netease, package: pkg } = ctx;
 
 	if (netease) {
+		// 计算请求耗时
+		const duration = ctx.startTime ? Date.now() - ctx.startTime : 0;
+		// 捕获响应头
+		const responseHeaders = proxyRes ? { ...proxyRes.headers } : {};
+		delete responseHeaders['transfer-encoding'];
+		
 		return request
 			.read(proxyRes, true)
 			.then((buffer) => {
@@ -416,7 +445,10 @@ hook.request.after = (ctx) => {
 					param: netease.param,
 					response: netease.jsonBody,
 					statusCode: proxyRes.statusCode,
-					method: req.method
+					method: req.method,
+					duration,
+					requestHeaders: ctx.requestHeaders,
+					responseHeaders,
 				};
 				axios.post(`http://localhost:${process.env.PORT || 3000}/api/capture`, dataToSend)
 					.catch(err => logger.error('Failed to send data to frontend:', err));
@@ -430,9 +462,12 @@ hook.request.after = (ctx) => {
 					crypto: netease.crypto || null,
 					param: netease.param,
 					response: null,
-					statusCode: proxyRes.statusCode,
+					statusCode: proxyRes ? proxyRes.statusCode : null,
 					error: error.message,
-					method: req.method
+					method: req.method,
+					duration,
+					requestHeaders: ctx.requestHeaders,
+					responseHeaders,
 				};
 				axios.post(`http://localhost:${process.env.PORT || 3000}/api/capture`, dataToSend)
 					.catch(err => logger.error('Failed to send data to frontend:', err));
@@ -455,16 +490,69 @@ hook.request.after = (ctx) => {
 			proxyRes.headers['content-type'] = 'audio/*';
 		}
 	}
+
+	// ========== 通用抓包: 捕获所有请求 (非网易云也抓) ==========
+	// 只在全抓包模式或网易云域名下捕获
+	if (!netease && !pkg && (isFullCapture() || ctx.isNeteaseDomain)) {
+		const duration = ctx.startTime ? Date.now() - ctx.startTime : 0;
+		const responseHeaders = proxyRes ? { ...proxyRes.headers } : {};
+		delete responseHeaders['transfer-encoding'];
+		const reqUrl = req.url || '';
+		const contentType = (proxyRes && proxyRes.headers['content-type']) || '';
+
+		// 基本数据 (所有请求都有)
+		const dataToSend = {
+			timestamp: new Date().toISOString(),
+			path: reqUrl,
+			method: req.method || 'GET',
+			statusCode: proxyRes ? proxyRes.statusCode : null,
+			duration,
+			requestHeaders: ctx.requestHeaders,
+			responseHeaders,
+			isNetease: ctx.isNeteaseDomain || false,
+			hostname: parse(reqUrl).hostname || req.headers.host || '',
+		};
+
+		// 尝试读取响应体 (仅对文本类响应，且大小限制 512KB)
+		const isTextResponse = contentType.includes('json') || contentType.includes('text') || contentType.includes('javascript') || contentType.includes('xml');
+		const contentLength = parseInt(proxyRes && proxyRes.headers['content-length'] || '0', 10);
+
+		if (proxyRes && isTextResponse && contentLength < 512 * 1024) {
+			return request.read(proxyRes, true)
+				.then((buffer) => {
+					if (buffer && buffer.length > 0 && buffer.length < 512 * 1024) {
+						const bodyStr = buffer.toString();
+						try {
+							dataToSend.response = JSON.parse(bodyStr);
+						} catch {
+							dataToSend.responseBody = bodyStr.slice(0, 10000); // 限制长度
+						}
+					}
+				})
+				.catch(() => {})
+				.then(() => {
+					axios.post(`http://localhost:${process.env.PORT || 3000}/api/capture`, dataToSend)
+						.catch(err => logger.error('Failed to send capture data:', err.message));
+				});
+		} else {
+			// 没有响应体或非文本，直接发送基础信息
+			axios.post(`http://localhost:${process.env.PORT || 3000}/api/capture`, dataToSend)
+				.catch(err => logger.error('Failed to send capture data:', err.message));
+		}
+	}
 };
 
 hook.connect.before = (ctx) => {
 	const { req } = ctx;
 	const url = parse('https://' + req.url);
-	if (
-		[url.hostname, req.headers.host].some((host) =>
-			hook.target.host.has(host)
-		)
-	) {
+	const hostname = url.hostname || '';
+
+	// 网易云域名: 走本地 MITM 代理 (原有逻辑)
+	const isNetease = [url.hostname, req.headers.host].some((host) =>
+		hook.target.host.has(host)
+	);
+
+	if (isNetease) {
 		if (parseInt(url.port) === 80) {
 			req.url = `${global.address || 'localhost'}:${global.port[0]}`;
 			req.local = true;
@@ -474,7 +562,18 @@ hook.connect.before = (ctx) => {
 		} else {
 			ctx.decision = 'blank';
 		}
-	} else if (url.href.includes(global.endpoint)) ctx.decision = 'proxy';
+	} else if (url.href.includes(global.endpoint)) {
+		ctx.decision = 'proxy';
+	} else if (isFullCapture()) {
+		// 完整抓包模式: 非网易云域名也走本地 MITM 代理
+		// 这样就能捕获所有 HTTPS 流量
+		if (global.port[1]) {
+			req.url = `${global.address || 'localhost'}:${global.port[1]}`;
+			req.local = true;
+		} else {
+			ctx.decision = 'blank';
+		}
+	}
 };
 
 hook.negotiate.before = (ctx) => {
@@ -482,6 +581,12 @@ hook.negotiate.before = (ctx) => {
 	const url = parse('https://' + req.url);
 	const target = hook.target.host;
 	if (req.local || decision) return;
+	// 完整抓包: 非网易云域名直接 MITM (sni 域名自动加入 target set)
+	if (isFullCapture() && socket.sni && !target.has(socket.sni)) {
+		target.add(socket.sni);
+		ctx.decision = 'blank';
+		return;
+	}
 	if (target.has(socket.sni) && !target.has(url.hostname)) {
 		target.add(url.hostname);
 		ctx.decision = 'blank';

@@ -70,6 +70,9 @@ web_modules/
 .env.*
 !.env.example
 
+# Captured data persistence
+captures.jsonl
+
 # parcel-bundler cache (https://parceljs.org/)
 .cache
 .parcel-cache
