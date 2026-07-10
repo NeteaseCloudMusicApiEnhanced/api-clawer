@@ -593,9 +593,8 @@
     .headers-table th,
     .headers-table td {
       text-align: left;
-      padding: 5px 10px;
+      padding: 6px 12px;
       border-bottom: 1px solid var(--border);
-      word-break: break-all;
     }
     .headers-table th {
       color: var(--muted);
@@ -613,6 +612,18 @@
     .headers-table .header-key {
       color: var(--accent);
       font-weight: 600;
+      width: 220px;
+      min-width: 160px;
+      max-width: 300px;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      padding-right: 16px;
+      vertical-align: top;
+    }
+    .headers-table td:last-child {
+      word-break: break-all;
+      vertical-align: top;
     }
 
     /* ======================== Filter Chips ======================== */
