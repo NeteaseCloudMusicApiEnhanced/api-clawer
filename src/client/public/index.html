@@ -689,6 +689,40 @@
       background: var(--accent-light);
     }
 
+    /* ======================== Format Toggle ======================== */
+    .fmt-group {
+      display: flex;
+      align-items: center;
+      gap: 0;
+      margin-right: 6px;
+      border: 1px solid var(--border);
+      border-radius: var(--radius-sm);
+      overflow: hidden;
+      flex-shrink: 0;
+    }
+    .fmt-btn {
+      background: none;
+      border: none;
+      padding: 3px 8px;
+      font-size: 10px;
+      cursor: pointer;
+      color: var(--muted);
+      transition: all var(--transition);
+      white-space: nowrap;
+    }
+    .fmt-btn:not(:last-child) {
+      border-right: 1px solid var(--border);
+    }
+    .fmt-btn.active {
+      background: var(--accent-light);
+      color: var(--accent);
+      font-weight: 600;
+    }
+    .fmt-btn:hover:not(.active) {
+      color: var(--fg-secondary);
+      background: var(--hover-bg);
+    }
+
     /* ======================== Batch Ops ======================== */
     .batch-bar {
       display: flex;
@@ -1038,7 +1072,11 @@
           <i class="search-icon">[搜索]</i>
           <input type="text" id="search-input" placeholder="搜索路径或参数..." oninput="onSearchInput()">
         </div>
-        <button class="tool-btn" onclick="exportAll()" title="导出所有数据为 JSON">导出</button>
+        <button class="tool-btn" onclick="exportAll()" title="导出所有数据">导出</button>
+        <div class="fmt-group">
+          <button class="fmt-btn active" data-fmt="json" onclick="setExportFormat('json')" title="JSON 格式">JSON</button>
+          <button class="fmt-btn" data-fmt="markdown" onclick="setExportFormat('markdown')" title="Markdown 格式（更易读）">MD</button>
+        </div>
         <button class="tool-btn danger" onclick="confirmClear()" title="清空所有抓包数据">清空</button>
         <button class="auto-scroll-btn active" id="auto-scroll-btn" onclick="toggleAutoScroll()" title="自动滚动到新数据">自动滚动</button>
         <button class="auto-scroll-btn" id="full-capture-btn" onclick="toggleFullCapture()" title="切换完整抓包模式（捕获全部域名流量）">完整抓包</button>
@@ -1163,6 +1201,7 @@
     let selectedItems = new Set();
     let sortBy = 'time';
     let sortAsc = false;
+    let exportFormat = 'json';
 
     // ======================== Theme ========================
     function getPreferredTheme() {
@@ -1295,6 +1334,13 @@
       renderCaptureList();
     }
 
+    function setExportFormat(fmt) {
+      exportFormat = fmt;
+      document.querySelectorAll('.fmt-btn').forEach(el => {
+        el.classList.toggle('active', el.dataset.fmt === fmt);
+      });
+    }
+
     function toggleFullCapture() {
       const btn = document.getElementById('full-capture-btn');
       const newState = !btn.classList.contains('active');
@@ -1419,16 +1465,20 @@
     function batchExport() {
       if (selectedItems.size === 0) return showToast('请先选择要导出的记录', 'info');
       const selected = [...selectedItems].sort((a,b) => a-b).map(idx => capturedData[idx]).filter(Boolean);
-      const blob = new Blob([formatJson(selected)], { type: 'application/json' });
+      const isMd = exportFormat === 'markdown';
+      const ext = isMd ? 'md' : 'json';
+      const content = isMd ? renderMarkdownExport(selected) : formatJson(selected);
+      const type = isMd ? 'text/markdown' : 'application/json';
+      const blob = new Blob([content], { type });
       const url = URL.createObjectURL(blob);
       const a = document.createElement('a');
       a.href = url;
-      a.download = 'netease-selected-' + new Date().toISOString().slice(0,19).replace(/[:-]/g,'') + '.json';
+      a.download = 'netease-selected-' + new Date().toISOString().slice(0,19).replace(/[:-]/g,'') + '.' + ext;
       document.body.appendChild(a);
       a.click();
       document.body.removeChild(a);
       URL.revokeObjectURL(url);
-      showToast('已导出 ' + selected.length + ' 条记录', 'success');
+      showToast('已导出 ' + selected.length + ' 条记录 (' + ext.toUpperCase() + ')', 'success');
     }
 
     function formatDuration(ms) {
@@ -1981,20 +2031,110 @@
       });
     }
 
+    // ======================== Markdown Export ========================
+    function renderMarkdownExport(items) {
+      const escapeMd = (s) => String(s).replace(/\|/g, '\\|');
+      const parts = items.map((item, i) => {
+        const lines = [];
+        // 标题
+        const method = item.method || 'GET';
+        const path = item.path || '/';
+        lines.push(`# ${i + 1}. ${method} \`${path}\``);
+        lines.push('');
+
+        // 概述
+        const meta = [];
+        if (item.statusCode) meta.push(`**状态:** ${item.statusCode}`);
+        if (item.duration != null) meta.push(`**耗时:** ${item.duration}ms`);
+        if (item.crypto) meta.push(`**加密:** ${item.crypto}`);
+        if (item.hostname) meta.push(`**域名:** ${item.hostname}`);
+        if (item.isNetease) meta.push('**来源:** 网易云');
+        if (item.error) meta.push(`**错误:** ${item.error}`);
+        lines.push(`> ${meta.join(' | ')}`);
+        lines.push('');
+
+        // 请求头
+        if (item.requestHeaders && Object.keys(item.requestHeaders).length > 0) {
+          lines.push('## 请求头');
+          lines.push('');
+          lines.push('| 名称 | 值 |');
+          lines.push('|------|-----|');
+          for (const [k, v] of Object.entries(item.requestHeaders)) {
+            const val = Array.isArray(v) ? v.join(', ') : String(v);
+            lines.push(`| ${escapeMd(k)} | ${escapeMd(val)} |`);
+          }
+          lines.push('');
+        }
+
+        // 请求参数
+        if (item.param && Object.keys(item.param).length > 0) {
+          lines.push('## 请求参数');
+          lines.push('');
+          lines.push('```json');
+          lines.push(formatJson(item.param));
+          lines.push('```');
+          lines.push('');
+        }
+
+        // 响应头
+        if (item.responseHeaders && Object.keys(item.responseHeaders).length > 0) {
+          lines.push('## 响应头');
+          lines.push('');
+          lines.push('| 名称 | 值 |');
+          lines.push('|------|-----|');
+          for (const [k, v] of Object.entries(item.responseHeaders)) {
+            const val = Array.isArray(v) ? v.join(', ') : String(v);
+            lines.push(`| ${escapeMd(k)} | ${escapeMd(val)} |`);
+          }
+          lines.push('');
+        }
+
+        // 响应体
+        if (item.response && Object.keys(item.response).length > 0) {
+          lines.push('## 响应体');
+          lines.push('');
+          lines.push('```json');
+          lines.push(formatJson(item.response));
+          lines.push('```');
+          lines.push('');
+        } else if (item.responseBody) {
+          lines.push('## 响应体（文本）');
+          lines.push('');
+          lines.push('```');
+          lines.push(item.responseBody);
+          lines.push('```');
+          lines.push('');
+        }
+
+        // 分隔线
+        if (i < items.length - 1) {
+          lines.push('---');
+          lines.push('');
+        }
+
+        return lines.join('\n');
+      });
+      return parts.join('\n');
+    }
+
     function exportAll() {
       if (!capturedData || capturedData.length === 0) {
         return showToast('暂无数据可导出', 'info');
       }
-      const blob = new Blob([formatJson(capturedData)], { type: 'application/json' });
+      const isMd = exportFormat === 'markdown';
+      const ext = isMd ? 'md' : 'json';
+      const content = isMd ? renderMarkdownExport(capturedData) : formatJson(capturedData);
+      const type = isMd ? 'text/markdown' : 'application/json';
+      const blob = new Blob([content], { type });
       const url = URL.createObjectURL(blob);
       const a = document.createElement('a');
       a.href = url;
-      a.download = 'netease-capture-' + new Date().toISOString().slice(0,19).replace(/[:-]/g,'') + '.json';
+      a.download = 'netease-capture-' + new Date().toISOString().slice(0,19).replace(/[:-]/g,'') + '.' + ext;
       document.body.appendChild(a);
       a.click();
       document.body.removeChild(a);
       URL.revokeObjectURL(url);
-      showToast('已导出 ' + capturedData.length + ' 条记录', 'success');
+      showToast('已导出 ' + capturedData.length + ' 条记录 (' + ext.toUpperCase() + ')', 'success');
     }
 
     // ======================== Utility ========================
