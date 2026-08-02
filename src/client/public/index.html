@@ -1,1188 +1,1030 @@
 <!DOCTYPE html>
-<html lang="zh-CN" data-theme="">
+<html lang="zh-CN">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
   <meta http-equiv="X-UA-Compatible" content="IE=edge">
-  <meta name="theme-color" content="#C20C0C" media="(prefers-color-scheme: light)">
-  <meta name="theme-color" content="#0d1117" media="(prefers-color-scheme: dark)">
+  <meta name="theme-color" content="#171717">
+  <meta name="color-scheme" content="dark">
   <link rel="manifest" href="/manifest.json">
-  <title>网易云音乐抓包工具</title>
+  <title>NCM CLAWER · 网易云音乐抓包工具</title>
   <style>
-    /* ======================== Reset & Light Variables ======================== */
+    /* =====================================================================
+       UI 框架 · 交接版
+       ─ 深色主题（全站固定 dark）· 全站直角 · shadcn 风格 · shell- 动画
+       ===================================================================== */
+
+    /* ---------------------- 设计令牌 ---------------------- */
     :root {
-      --bg: #f0f2f5;
-      --panel: #ffffff;
-      --fg: #1a1a2e;
-      --fg-secondary: #555555;
-      --muted: #888888;
-      --border: #e2e2ec;
-      --header-bg: #fafbfc;
-      --status-bg: #f8f9fa;
-      --input-bg: #f8f9fa;
-      --code-bg: #f8f9fa;
-      --hover-bg: #f8f9fa;
-      --tab-bg: #fafbfc;
-      --toast-bg: #323232;
-      --modal-overlay: rgba(0,0,0,0.45);
-      --method-get-bg: #e3f2fd;
-      --method-get-fg: #1565c0;
-      --method-get-border: #bbdefb;
-      --method-post-bg: #e8f5e9;
-      --method-post-fg: #2e7d32;
-      --method-post-border: #c8e6c9;
-      --method-put-bg: #fff3e0;
-      --method-put-fg: #e65100;
-      --method-put-border: #ffe0b2;
-      --method-del-bg: #fce4ec;
-      --method-del-fg: #c62828;
-      --method-del-border: #f8bbd0;
-      --method-default-bg: #f5f5f5;
-      --method-default-fg: #616161;
-      --method-default-border: #e0e0e0;
-      --status-2xx-bg: #e8f5e9;
-      --status-2xx-fg: #2e7d32;
-      --status-3xx-bg: #e3f2fd;
-      --status-3xx-fg: #1565c0;
-      --status-4xx-bg: #fff3e0;
-      --status-4xx-fg: #e65100;
-      --status-5xx-bg: #fce4ec;
-      --status-5xx-fg: #c62828;
-      --status-err-bg: #fce4ec;
-      --status-err-fg: #c62828;
-      --scrollbar-thumb: #cccccc;
-      --scrollbar-hover: #aaaaaa;
-      --accent: #C20C0C;
-      --accent-hover: #a00a0a;
-      --accent-light: #fff0f0;
-      --accent-border: #f5d0d0;
-      --success: #1e8e3e;
-      --success-bg: #e6f4ea;
-      --warning: #f9ab00;
-      --warning-bg: #fef7e0;
-      --radius: 8px;
-      --radius-sm: 4px;
-      --shadow: 0 1px 3px rgba(0,0,0,0.06);
-      --shadow-hover: 0 2px 8px rgba(0,0,0,0.1);
-      --transition: 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+      --background: #171717;
+      --foreground: #e4e4e4;
+      --card: #1f1f1f;
+      --card-foreground: #e4e4e4;
+      --popover: #242424;
+      --popover-foreground: #e4e4e4;
+      --primary: #e4e4e4;
+      --primary-foreground: #171717;
+      --secondary: #a4a4a4;
+      --secondary-foreground: #171717;
+      --muted: #2e2e2e;
+      --muted-foreground: #a1a1a1;
+      --accent: #383838;
+      --accent-foreground: #e4e4e4;
+      --destructive: #ff544c;
+      --destructive-foreground: #171717;
+      --border: #404040;
+      --input: #4d4d4d;
+      --ring: #e4e4e4;
+      --radius: 0px;          /* 全站直角的核心 */
+      --radius-2px: 2px;      /* 唯一微圆角 */
+      --font-mono: "JetBrains Mono", "Fira Code", ui-monospace, SFMono-Regular,
+                   "SF Mono", Menlo, Consolas, "Liberation Mono", monospace;
+      --topbar-h: 3.5rem;
+      --live: #ff2d55;        /* 专属点缀：直播在线 */
+      --bili: #fb7299;        /* 专属点缀：B站 */
+      /* 列表行列表格模板（可拖拽调宽）：check / method / path / status / crypto / duration / time / del */
+      --col-check: 20px;
+      --col-method: 54px;
+      --col-path: minmax(0, 1fr);
+      --col-status: 50px;
+      --col-crypto: 62px;
+      --col-duration: 58px;
+      --col-time: 92px;
+      --col-del: 24px;
     }
 
-    /* ======================== Dark Variables ======================== */
-    [data-theme="dark"] {
-      --bg: #0d1117;
-      --panel: #161b22;
-      --fg: #c9d1d9;
-      --fg-secondary: #8b949e;
-      --muted: #6e7681;
-      --border: #30363d;
-      --header-bg: #161b22;
-      --status-bg: #0d1117;
-      --input-bg: #0d1117;
-      --code-bg: #0d1117;
-      --hover-bg: #1c2333;
-      --tab-bg: #161b22;
-      --toast-bg: #484848;
-      --modal-overlay: rgba(0,0,0,0.7);
-      --method-get-bg: #0d2137;
-      --method-get-fg: #58a6ff;
-      --method-get-border: #1f3a5f;
-      --method-post-bg: #0d2818;
-      --method-post-fg: #3fb950;
-      --method-post-border: #1a3a28;
-      --method-put-bg: #2d1f0d;
-      --method-put-fg: #d29922;
-      --method-put-border: #3d2a14;
-      --method-del-bg: #2d0d14;
-      --method-del-fg: #f85149;
-      --method-del-border: #4a1520;
-      --method-default-bg: #1c1c1c;
-      --method-default-fg: #8b949e;
-      --method-default-border: #30363d;
-      --status-2xx-bg: #0d2818;
-      --status-2xx-fg: #3fb950;
-      --status-3xx-bg: #0d2137;
-      --status-3xx-fg: #58a6ff;
-      --status-4xx-bg: #2d1f0d;
-      --status-4xx-fg: #d29922;
-      --status-5xx-bg: #2d0d14;
-      --status-5xx-fg: #f85149;
-      --status-err-bg: #2d0d14;
-      --status-err-fg: #f85149;
-      --scrollbar-thumb: #30363d;
-      --scrollbar-hover: #484f58;
-      --accent: #f85149;
-      --accent-hover: #da3633;
-      --accent-light: #2d0a0a;
-      --accent-border: #4a1515;
-      --success: #3fb950;
-      --success-bg: #0d2818;
-      --warning: #d29922;
-      --warning-bg: #2d1f0d;
-      --shadow: 0 1px 3px rgba(0,0,0,0.3);
-      --shadow-hover: 0 2px 8px rgba(0,0,0,0.4);
-    }
+    /* 灰阶递进：#171717 → #1f1f1f → #242424 → #2e2e2e → #383838
+       没有花哨的彩色，全靠层级和边框。 */
 
-    /* Auto dark mode - only if no manual override */
-    @media (prefers-color-scheme: dark) {
-      :root:not([data-theme="light"]):not([data-theme="dark"]) {
-        --bg: #0d1117;
-        --panel: #161b22;
-        --fg: #c9d1d9;
-        --fg-secondary: #8b949e;
-        --muted: #6e7681;
-        --border: #30363d;
-        --header-bg: #161b22;
-        --status-bg: #0d1117;
-        --input-bg: #0d1117;
-        --code-bg: #0d1117;
-        --hover-bg: #1c2333;
-        --tab-bg: #161b22;
-        --toast-bg: #484848;
-        --modal-overlay: rgba(0,0,0,0.7);
-        --method-get-bg: #0d2137;
-        --method-get-fg: #58a6ff;
-        --method-get-border: #1f3a5f;
-        --method-post-bg: #0d2818;
-        --method-post-fg: #3fb950;
-        --method-post-border: #1a3a28;
-        --method-put-bg: #2d1f0d;
-        --method-put-fg: #d29922;
-        --method-put-border: #3d2a14;
-        --method-del-bg: #2d0d14;
-        --method-del-fg: #f85149;
-        --method-del-border: #4a1520;
-        --method-default-bg: #1c1c1c;
-        --method-default-fg: #8b949e;
-        --method-default-border: #30363d;
-        --status-2xx-bg: #0d2818;
-        --status-2xx-fg: #3fb950;
-        --status-3xx-bg: #0d2137;
-        --status-3xx-fg: #58a6ff;
-        --status-4xx-bg: #2d1f0d;
-        --status-4xx-fg: #d29922;
-        --status-5xx-bg: #2d0d14;
-        --status-5xx-fg: #f85149;
-        --status-err-bg: #2d0d14;
-        --status-err-fg: #f85149;
-        --scrollbar-thumb: #30363d;
-        --scrollbar-hover: #484f58;
-        --accent: #f85149;
-        --accent-hover: #da3633;
-        --accent-light: #2d0a0a;
-        --accent-border: #4a1515;
-        --success: #3fb950;
-        --success-bg: #0d2818;
-        --warning: #d29922;
-        --warning-bg: #2d1f0d;
-        --shadow: 0 1px 3px rgba(0,0,0,0.3);
-        --shadow-hover: 0 2px 8px rgba(0,0,0,0.4);
-      }
-    }
-
+    /* ---------------------- Reset ---------------------- */
     * { box-sizing: border-box; margin: 0; padding: 0; }
-    html, body { height: 100%; }
+    html { height: 100%; }
     body {
-      margin: 0;
-      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Noto Sans SC', sans-serif;
-      color: var(--fg);
-      background: var(--bg);
-      line-height: 1.6;
-      -webkit-font-smoothing: antialiased;
-      transition: background var(--transition), color var(--transition);
-    }
-    ::-webkit-scrollbar { width: 6px; height: 6px; }
-    ::-webkit-scrollbar-track { background: transparent; }
-    ::-webkit-scrollbar-thumb { background: var(--scrollbar-thumb); border-radius: 3px; }
-    ::-webkit-scrollbar-thumb:hover { background: var(--scrollbar-hover); }
-
-    /* ======================== Layout ======================== */
-    .main-container {
-      display: flex;
-      height: 100vh;
-      overflow: hidden;
-    }
-    .left-panel {
-      position: relative;
-      width: 35%;
-      min-width: 280px;
-      max-width: 520px;
-      border-right: 1px solid var(--border);
-      background: var(--panel);
+      height: 100dvh;
       display: flex;
       flex-direction: column;
+      background: var(--background);
+      color: var(--foreground);
+      font-family: var(--font-mono);
+      font-size: 13px;
+      line-height: 1.6;
+      -webkit-font-smoothing: antialiased;
       overflow: hidden;
-      flex-shrink: 0;
-      transition: width 0.05s ease, background var(--transition), border-color var(--transition);
     }
-    .right-panel {
-      flex: 1;
-      background: var(--bg);
-      overflow-y: auto;
-      padding: 20px;
-      min-width: 0;
-      transition: background var(--transition);
+    button { font-family: inherit; color: inherit; background: none; border: none; cursor: pointer; }
+    input, textarea { font-family: inherit; color: inherit; }
+
+    ::-webkit-scrollbar { width: 6px; height: 6px; }
+    ::-webkit-scrollbar-track { background: transparent; }
+    ::-webkit-scrollbar-thumb { background: var(--accent); }
+    ::-webkit-scrollbar-thumb:hover { background: var(--border); }
+
+    :focus-visible {
+      outline: 1px solid var(--ring);
+      outline-offset: 2px;
     }
 
-    /* ======================== Resize Handle ======================== */
-    .resize-handle {
-      position: absolute;
-      top: 0;
-      right: -3px;
-      width: 6px;
-      height: 100%;
-      cursor: col-resize;
-      z-index: 10;
-      opacity: 0;
-      transition: opacity 0.2s;
-    }
-    .resize-handle::after {
-      content: '';
-      position: absolute;
-      top: 50%;
-      left: 50%;
-      transform: translate(-50%, -50%);
-      width: 2px;
-      height: 32px;
-      background: var(--border);
-      border-radius: 1px;
-      transition: all 0.2s;
-    }
-    .left-panel:hover .resize-handle { opacity: 1; }
-    .resize-handle:hover::after,
-    .resize-handle.resizing::after {
-      background: var(--accent);
-      height: 48px;
-    }
+    /* 全站微交互统一 75ms，hover 一律前景/背景反转 */
+    ::selection { background: var(--foreground); color: var(--background); }
 
-    /* ======================== Header ======================== */
-    .header {
-      padding: 14px 18px 12px;
-      border-bottom: 1px solid var(--border);
-      background: var(--header-bg);
-      flex-shrink: 0;
-      transition: background var(--transition), border-color var(--transition);
-    }
-    .header-top {
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      margin-bottom: 4px;
-    }
-    .header h1 {
-      font-size: 17px;
-      font-weight: 700;
-      margin: 0;
-      color: var(--accent);
-      letter-spacing: -0.3px;
-      display: flex;
-      align-items: center;
-      gap: 8px;
-    }
-    .header h1 .badge {
-      font-size: 10px;
-      font-weight: 500;
-      color: var(--muted);
-      background: var(--hover-bg);
-      padding: 1px 7px;
-      border-radius: 8px;
-      border: 1px solid var(--border);
-    }
-    .header .sub {
-      font-size: 12px;
-      color: var(--muted);
-      margin: 0;
-    }
+    /* ---------------------- 圆角真相 ----------------------
+       --radius: 0px → 所有派生圆角归零，全站直角。
+       仅保留两类圆：rounded-full（全圆）、rounded-[2px]（唯一微圆角）。 */
+    .rounded-full { border-radius: 9999px; }
+    .rounded-2px  { border-radius: var(--radius-2px); }
 
-    /* ======================== Theme Toggle ======================== */
-    .theme-toggle {
-      background: none;
-      border: 1px solid var(--border);
-      border-radius: var(--radius-sm);
-      color: var(--muted);
-      font-size: 11px;
-      padding: 3px 8px;
-      cursor: pointer;
-      transition: all var(--transition);
-      white-space: nowrap;
-    }
-    .theme-toggle:hover {
-      border-color: var(--accent);
-      color: var(--accent);
-    }
-
-    /* ======================== Status Bar ======================== */
-    .status-bar {
-      display: flex;
-      align-items: center;
-      gap: 12px;
-      padding: 8px 18px;
-      background: var(--status-bg);
-      border-bottom: 1px solid var(--border);
-      font-size: 12px;
-      flex-shrink: 0;
-      flex-wrap: wrap;
-      transition: background var(--transition), border-color var(--transition);
-    }
-    .status-dot {
-      display: inline-block;
-      width: 8px;
-      height: 8px;
-      border-radius: 50%;
-      margin-right: 4px;
-      vertical-align: middle;
-      background: var(--warning);
-      transition: background var(--transition);
-    }
-    .status-dot.connected { background: var(--success); }
-    .status-label {
-      color: var(--fg-secondary);
-      vertical-align: middle;
-    }
-    .status-stat {
-      color: var(--muted);
-      margin-left: auto;
-    }
-    .status-stat strong { color: var(--fg); font-weight: 600; }
-
-    /* ======================== Toolbar ======================== */
-    .toolbar {
-      display: flex;
-      align-items: center;
-      gap: 6px;
-      padding: 8px 18px;
-      border-bottom: 1px solid var(--border);
-      flex-shrink: 0;
-      transition: border-color var(--transition);
-    }
-    .toolbar .search-wrap {
-      flex: 1;
-      position: relative;
-    }
-    .toolbar .search-wrap input {
-      width: 100%;
-      padding: 6px 10px 6px 30px;
-      border: 1px solid var(--border);
-      border-radius: 6px;
-      font-size: 12px;
-      outline: none;
-      background: var(--input-bg);
-      color: var(--fg);
-      transition: all var(--transition);
-    }
-    .toolbar .search-wrap input:focus {
-      border-color: var(--accent);
-      background: var(--panel);
-      box-shadow: 0 0 0 2px rgba(194,12,12,0.1);
-    }
-    .toolbar .search-wrap .search-icon {
-      position: absolute;
-      left: 9px;
-      top: 50%;
-      transform: translateY(-50%);
-      color: var(--muted);
-      font-size: 11px;
-      pointer-events: none;
-      font-style: normal;
-    }
-    .tool-btn {
+    /* ---------------------- Button (data-slot="button") ----------------------
+       h-9 px-4 · font-mono text-sm · 无圆角 · transition-colors duration-75
+       hover 时前景/背景反转 */
+    .btn {
       display: inline-flex;
       align-items: center;
       justify-content: center;
-      padding: 5px 10px;
-      border: 1px solid var(--border);
-      border-radius: var(--radius-sm);
-      background: var(--panel);
-      color: var(--fg-secondary);
-      font-size: 12px;
-      cursor: pointer;
-      transition: all var(--transition);
+      gap: 6px;
+      height: 36px;
+      padding: 0 16px;
+      font-family: var(--font-mono);
+      font-size: 13px;
+      letter-spacing: 0.02em;
       white-space: nowrap;
+      border-radius: var(--radius);
+      border: 1px solid transparent;
+      transition: background-color 75ms, color 75ms, border-color 75ms;
+      user-select: none;
+    }
+    .btn:active { transform: translateY(0.5px); }
+    .btn[disabled] { opacity: 0.45; pointer-events: none; }
+
+    /* 变体：default（实心白） */
+    .btn-default { background: var(--primary); color: var(--primary-foreground); }
+    .btn-default:hover { background: var(--background); color: var(--foreground); border-color: var(--border); }
+    .btn.active { background: var(--foreground); color: var(--background); border-color: var(--foreground); }
+
+    /* 变体：outline（透明 + 边框） */
+    .btn-outline { background: transparent; color: var(--foreground); border-color: var(--border); }
+    .btn-outline:hover { background: var(--foreground); color: var(--background); border-color: var(--foreground); }
+
+    /* 变体：ghost（透明） */
+    .btn-ghost { background: transparent; color: var(--muted-foreground); }
+    .btn-ghost:hover { background: var(--foreground); color: var(--background); }
+
+    /* 变体：destructive */
+    .btn-destructive { background: transparent; color: var(--destructive); border-color: var(--destructive); }
+    .btn-destructive:hover { background: var(--destructive); color: var(--destructive-foreground); }
+
+    /* 变体：icon / icon-xs / icon-sm / icon-lg */
+    .btn-icon { width: 36px; height: 36px; padding: 0; flex-shrink: 0; }
+    .btn-icon-xs { width: 24px; height: 24px; padding: 0; font-size: 11px; flex-shrink: 0; }
+    .btn-icon-sm { width: 30px; height: 30px; padding: 0; font-size: 12px; flex-shrink: 0; }
+    .btn-icon-lg { width: 44px; height: 44px; padding: 0; font-size: 15px; flex-shrink: 0; }
+
+    .btn-sm { height: 30px; padding: 0 12px; font-size: 12px; }
+    .btn-xs { height: 24px; padding: 0 8px; font-size: 11px; }
+
+    /* ---------------------- Badge ----------------------
+       font-mono uppercase text-[10px] px-1.5 py-px */
+    .badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+      height: 18px;
+      padding: 0 6px;
+      font-family: var(--font-mono);
+      font-size: 10px;
+      line-height: 1;
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+      white-space: nowrap;
+      border: 1px solid var(--border);
+      border-radius: var(--radius-2px);
+    }
+    .badge-primary { background: var(--primary); color: var(--primary-foreground); border-color: var(--primary); }  /* “新”徽章用 primary 反色 */
+    .badge-outline { background: transparent; color: var(--foreground); }
+    .badge-muted { background: var(--muted); color: var(--muted-foreground); border-color: transparent; }
+    .badge-secondary { background: var(--secondary); color: var(--secondary-foreground); border-color: var(--secondary); }
+    .badge-destructive { background: var(--destructive); color: var(--destructive-foreground); border-color: var(--destructive); }
+
+    /* ---------------------- Input ---------------------- */
+    .input {
+      height: 36px;
+      padding: 0 12px;
+      background: var(--background);
+      border: 1px solid var(--input);
+      border-radius: var(--radius);
+      color: var(--foreground);
+      font-family: var(--font-mono);
+      font-size: 13px;
+      transition: border-color 75ms, box-shadow 75ms;
+      width: 100%;
+    }
+    .input:focus { outline: none; border-color: var(--ring); box-shadow: 0 0 0 1px var(--ring); }
+    .input::placeholder { color: var(--muted-foreground); }
+
+    .textarea {
+      width: 100%;
+      background: var(--background);
+      border: 1px solid var(--input);
+      border-radius: var(--radius);
+      color: var(--foreground);
+      font-family: var(--font-mono);
+      font-size: 12px;
+      line-height: 1.6;
+      padding: 10px 12px;
+      resize: vertical;
+      transition: border-color 75ms, box-shadow 75ms;
+    }
+    .textarea:focus { outline: none; border-color: var(--ring); box-shadow: 0 0 0 1px var(--ring); }
+
+    /* ---------------------- Checkbox (shadcn 标准，直角) ---------------------- */
+    .checkbox {
+      appearance: none;
+      -webkit-appearance: none;
+      width: 14px;
+      height: 14px;
+      flex-shrink: 0;
+      display: inline-grid;
+      place-content: center;
+      background: transparent;
+      border: 1px solid var(--input);
+      border-radius: var(--radius);
+      cursor: pointer;
+      transition: background-color 75ms, border-color 75ms, color 75ms;
+    }
+    .checkbox:checked { background: var(--foreground); border-color: var(--foreground); }
+    .checkbox:checked::after {
+      content: "\2713";
+      font-size: 10px;
+      line-height: 1;
+      color: var(--background);
+      font-weight: 700;
+    }
+    .checkbox:indeterminate { background: var(--foreground); border-color: var(--foreground); }
+    .checkbox:indeterminate::after {
+      content: "";
+      width: 6px;
+      height: 1px;
+      background: var(--background);
+    }
+
+    .label { display: inline-flex; align-items: center; gap: 6px; cursor: pointer; user-select: none; font-size: 12px; }
+
+    /* ---------------------- Chip（pill 筛选，唯一全圆 + 反色激活） ---------------------- */
+    .chip {
+      height: 22px;
+      padding: 0 8px;
+      display: inline-flex;
+      align-items: center;
+      font-family: var(--font-mono);
+      font-size: 10px;
+      letter-spacing: 0.02em;
+      color: var(--muted-foreground);
+      background: transparent;
+      border: 1px solid var(--border);
+      border-radius: 9999px;
+      white-space: nowrap;
+      transition: background-color 75ms, color 75ms, border-color 75ms;
+    }
+    .chip:hover { border-color: var(--foreground); color: var(--foreground); }
+    .chip.active { background: var(--foreground); border-color: var(--foreground); color: var(--background); }
+
+    /* ---------------------- Card / 卡片网格 ----------------------
+       grid gap-px border bg-border —— 用背景色当分隔线，卡片之间零间距 */
+    .card { background: var(--card); border: 1px solid var(--border); border-radius: var(--radius); }
+    .card-grid {
+      display: grid;
+      gap: 1px;
+      background: var(--border);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      overflow: hidden;
+    }
+
+    /* ---------------------- Skeleton（shell-scan 扫描动画） ---------------------- */
+    .skeleton {
+      position: relative;
+      overflow: hidden;
+      background: var(--muted);
+    }
+    .skeleton::after {
+      content: "";
+      position: absolute;
+      inset: 0;
+      transform: translateX(-100%);
+      background: linear-gradient(90deg, transparent, rgba(228, 228, 228, 0.06), transparent);
+      animation: shell-scan 1.4s infinite;
+    }
+
+    /* ---------------------- Spinner（三方块呼吸） ---------------------- */
+    .spinner {
+      display: inline-flex;
+      align-items: flex-end;
       gap: 4px;
     }
-    .tool-btn:hover {
-      border-color: var(--accent);
-      color: var(--accent);
-      background: var(--accent-light);
+    .spinner-dot {
+      width: 6px;
+      height: 6px;
+      background: var(--foreground);
+      animation: shell-spinner-dot 0.9s ease-in-out infinite;
     }
-    .tool-btn:active { transform: scale(0.96); }
-    .tool-btn.danger:hover {
-      border-color: var(--accent);
-      color: #ffffff;
-      background: var(--accent);
+    .spinner-dot:nth-child(2) { animation-delay: 0.3s; }
+    .spinner-dot:nth-child(3) { animation-delay: 0.6s; }
+
+    /* ---------------------- 动画系统（shell- 前缀统一） ---------------------- */
+    @keyframes shell-blink { 50% { opacity: 0; } }                 /* 闪烁（B站光标） */
+    @keyframes shell-fade-in { from { opacity: 0; } to { opacity: 1; } }
+    @keyframes shell-slide-in-up { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+    @keyframes shell-slide-in-left { from { opacity: 0; transform: translateX(-10px); } to { opacity: 1; transform: translateX(0); } }
+    @keyframes shell-slide-in-right { from { opacity: 0; transform: translateX(10px); } to { opacity: 1; transform: translateX(0); } }
+    @keyframes shell-slide-in-down { from { opacity: 0; transform: translateY(-10px); } to { opacity: 1; transform: translateY(0); } }
+    @keyframes shell-backdrop-in { from { opacity: 0; } to { opacity: 1; } }
+    @keyframes shell-backdrop-out { from { opacity: 1; } to { opacity: 0; } }
+    @keyframes shell-scan { to { transform: translateX(100%); } }
+    @keyframes shell-spinner-dot {
+      0%, 100% { opacity: 0.2; transform: translateY(0); }
+      50%      { opacity: 1;   transform: translateY(-3px); }
     }
 
-    /* ======================== Path Toggle ======================== */
-    .path-toggle {
-      display: inline-block;
-      padding: 1px 8px;
-      border: 1px solid var(--accent);
-      border-radius: 3px;
-      background: var(--accent-light);
-      color: var(--accent);
-      font-size: 10px;
-      font-weight: 600;
-      cursor: pointer;
-      transition: all var(--transition);
-      flex-shrink: 0;
-      font-family: 'Courier New', monospace;
-      letter-spacing: 0.3px;
-    }
-    .path-toggle:hover {
-      background: var(--accent);
-      color: #ffffff;
-    }
-    .path-toggle:active { transform: scale(0.95); }
+    .shell-fade-in   { animation: shell-fade-in 150ms ease-out; }
+    .shell-slide-in-up    { animation: shell-slide-in-up 180ms ease-out; }
+    .shell-slide-in-left  { animation: shell-slide-in-left 180ms ease-out; }
+    .shell-slide-in-right { animation: shell-slide-in-right 180ms ease-out; }
+    .shell-slide-in-down  { animation: shell-slide-in-down 180ms ease-out; }
+    .shell-backdrop-in    { animation: shell-backdrop-in 150ms ease-out; }
 
-    /* ======================== Left Content ======================== */
-    .left-content {
-      flex: 1;
-      overflow-y: auto;
-      padding: 8px 0;
-    }
-    .capture-list { padding: 0 10px; }
-
-    /* ======================== List Items ======================== */
-    .capture-list-item {
-      display: flex;
-      align-items: flex-start;
-      gap: 8px;
-      padding: 9px 10px;
-      border: 1px solid transparent;
-      border-radius: 6px;
-      margin-bottom: 4px;
-      cursor: pointer;
-      transition: all var(--transition);
-      background: transparent;
+    /* 专属点缀：直播在线 #ff2d55（三层扩散光环） */
+    .live-dot {
       position: relative;
+      width: 8px;
+      height: 8px;
+      flex-shrink: 0;
+      border-radius: 9999px;
+      background: var(--accent);
+      transition: background-color 150ms;
     }
-    .capture-list-item:hover {
-      background: var(--hover-bg);
-      border-color: var(--border);
+    .live-dot.live {
+      background: var(--live);
+      animation: live-pulse 1.8s ease-out infinite;
     }
-    .capture-list-item.active {
-      background: var(--accent-light);
-      border-color: var(--accent-border);
-      box-shadow: 0 1px 4px rgba(194,12,12,0.08);
+    .live-dot.live::before,
+    .live-dot.live::after {
+      content: "";
+      position: absolute;
+      inset: -3px;
+      border-radius: 9999px;
+      border: 1px solid var(--live);
+      animation: live-ring 1.8s ease-out infinite;
+      pointer-events: none;
     }
-    .capture-list-item .item-main {
+    .live-dot.live::after { animation-delay: 0.6s; }
+    @keyframes live-pulse {
+      0%, 100% { box-shadow: 0 0 0 0 rgba(255, 45, 85, 0.55); }
+      70%      { box-shadow: 0 0 0 6px rgba(255, 45, 85, 0); }
+    }
+    @keyframes live-ring {
+      0%   { transform: scale(0.6); opacity: 0.8; }
+      100% { transform: scale(2.4); opacity: 0; }
+    }
+
+    /* 专属点缀：B站 #fb7299（带闪烁光标） */
+    .live-badge {
+      color: var(--bili);
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+      font-size: 12px;
+      letter-spacing: 0.08em;
+      font-weight: 700;
+    }
+    .live-badge::after {
+      content: "\258D";   /* 右侧半块光标 */
+      animation: shell-blink 1s steps(1) infinite;
+    }
+
+    /* 尊重 prefers-reduced-motion */
+    @media (prefers-reduced-motion: reduce) {
+      *, *::before, *::after {
+        animation-duration: 0.001ms !important;
+        animation-iteration-count: 1 !important;
+        transition-duration: 0.001ms !important;
+      }
+    }
+
+    /* =====================================================================
+       布局：顶栏 fixed 毛玻璃 + 主体 max-w-6xl 居中 + 移动端抽屉
+       ===================================================================== */
+
+    /* ---------------------- 顶栏 ---------------------- */
+    .topbar {
+      position: fixed;
+      inset: 0 0 auto 0;
+      z-index: 40;
+      height: var(--topbar-h);
+      border-bottom: 1px solid rgba(64, 64, 64, 0.4);
+      background: rgba(23, 23, 23, 0.8);
+      backdrop-filter: blur(12px);
+      -webkit-backdrop-filter: blur(12px);
+    }
+    .topbar-inner {
+      height: 100%;
+      max-width: 72rem;   /* max-w-6xl */
+      margin: 0 auto;
+      padding: 0 20px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 16px;
+    }
+    .brand { display: flex; align-items: center; gap: 10px; min-width: 0; }
+    .brand-mark {
+      width: 26px;
+      height: 26px;
+      flex-shrink: 0;
+      display: grid;
+      place-content: center;
+      background: var(--primary);
+      color: var(--primary-foreground);
+      font-size: 11px;
+      font-weight: 700;
+      letter-spacing: 0.04em;
+      border-radius: var(--radius-2px);
+    }
+    .brand-title { font-size: 14px; font-weight: 700; letter-spacing: 0.04em; white-space: nowrap; }
+    .brand-sub { font-size: 10px; color: var(--muted-foreground); letter-spacing: 0.04em; white-space: nowrap; }
+    .topbar-actions { display: flex; align-items: center; gap: 12px; flex-shrink: 0; }
+    .conn { display: flex; align-items: center; gap: 6px; }
+
+    #drawer-open-btn { display: none; }
+
+    /* ---------------------- 主体（全宽，抓包软件式） ---------------------- */
+    .main {
       flex: 1;
-      min-width: 0;
+      min-height: 0;
+      width: 100%;
+      padding: var(--topbar-h) 0 0;
+      display: flex;
+      flex-direction: column;
     }
-    .capture-list-item .item-top {
+
+    /* ---------------------- 工具栏（一行：搜索 + 筛选 + 操作） ---------------------- */
+    .toolbar {
+      flex-shrink: 0;
       display: flex;
       align-items: center;
       gap: 6px;
-      margin-bottom: 3px;
+      flex-wrap: wrap;
+      padding: 8px 16px;
+      border-bottom: 1px solid var(--border);
+      background: var(--card);
     }
-    .capture-list-item .item-path {
-      font-size: 12px;
-      font-weight: 600;
-      color: var(--fg);
+    .toolbar .search-wrap { flex: 1; min-width: 200px; position: relative; }
+    .search-icon {
+      position: absolute;
+      left: 12px;
+      top: 50%;
+      transform: translateY(-50%);
+      font-size: 11px;
+      color: var(--muted-foreground);
+      pointer-events: none;
+      font-style: normal;
+    }
+    .search-wrap .input { padding-left: 30px; }
+    .btn-group {
+      display: inline-flex;
+      align-items: center;
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
       overflow: hidden;
-      text-overflow: ellipsis;
-      white-space: nowrap;
+      flex-shrink: 0;
+    }
+    .btn-group .btn { border: none; border-radius: 0; height: 30px; padding: 0 10px; font-size: 12px; }
+    .btn-group .btn + .btn { border-left: 1px solid var(--border); }
+    .btn-group .btn.active { background: var(--foreground); color: var(--background); }
+
+    .filter-group { display: inline-flex; align-items: center; gap: 4px; }
+    .filter-label {
+      font-size: 9px;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      color: var(--muted-foreground);
+      margin-right: 1px;
+    }
+    .f-sep { width: 1px; height: 16px; background: var(--border); margin: 0 2px; flex-shrink: 0; }
+
+    /* ---------------------- 底部状态栏（批量操作 + 统计） ---------------------- */
+    .statusbar {
+      flex-shrink: 0;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding: 6px 16px;
+      border-top: 1px solid var(--border);
+      background: var(--card);
+      font-size: 11px;
+      color: var(--muted-foreground);
+      min-height: 34px;
+    }
+    .statusbar strong { color: var(--foreground); font-weight: 700; }
+    .sb-stats { margin-left: auto; display: inline-flex; gap: 14px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .sb-stats .sb-block { display: inline-flex; gap: 6px; }
+    .sb-stats .sb-block b { color: var(--foreground); font-weight: 700; }
+
+    /* ---------------------- 工作区（类抓包软件：左列表右详情 + 可拖拽分栏） ---------------------- */
+    .workspace {
+      flex: 1;
+      min-height: 0;
+      display: flex;
+      background: var(--background);
+      overflow: hidden;
+    }
+
+    .list-panel {
+      flex: 0 0 40%;
+      min-width: 240px;
+      max-width: 70%;
+      display: flex;
+      flex-direction: column;
+      background: var(--background);
+      border-right: 1px solid var(--border);
+    }
+    .resize-handle {
+      flex-shrink: 0;
+      width: 5px;
+      cursor: col-resize;
+      background: var(--border);
+      transition: background-color 75ms;
+    }
+    .resize-handle:hover,
+    .resize-handle.resizing { background: var(--ring); }
+
+    /* 表头行 */
+    .list-head {
+      display: grid;
+      grid-template-columns: var(--col-check) var(--col-method) var(--col-path) var(--col-status) var(--col-crypto) var(--col-duration) var(--col-time) var(--col-del);
+      gap: 8px;
+      align-items: center;
+      padding: 5px 10px;
+      border-bottom: 1px solid var(--border);
+      background: var(--muted);
+      flex-shrink: 0;
+      font-size: 9px;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      color: var(--muted-foreground);
+      overflow: hidden;
+    }
+    .list-head .col { position: relative; overflow: visible; white-space: nowrap; }
+    /* 列宽拖拽把手：hover 显示分隔线，双击恢复默认 */
+    .col-resizer {
+      position: absolute; top: 0; bottom: 0; right: 0;
+      width: 10px; cursor: col-resize; z-index: 5;
+    }
+    .col-resizer::after {
+      content: '';
+      position: absolute; top: 18%; bottom: 18%; right: 5px;
+      width: 1px; background: var(--border);
+      transition: background-color 75ms;
+    }
+    .col-resizer:hover::after,
+    body.col-resizing .col-resizer::after { background: var(--ring); }
+    #drawer-close-btn { display: none; }
+
+    /* 表格行列表：gap-px 分隔线，hover 前景/背景反转 */
+    .list-grid {
+      flex: 1;
+      min-height: 0;
+      overflow-y: auto;
+      overflow-x: hidden;
+      display: grid;
+      grid-auto-rows: min-content;
+      gap: 1px;
+      background: var(--border);
+    }
+    .list-card {
+      display: grid;
+      grid-template-columns: var(--col-check) var(--col-method) var(--col-path) var(--col-status) var(--col-crypto) var(--col-duration) var(--col-time) var(--col-del);
+      gap: 8px;
+      align-items: center;
+      padding: 5px 10px;
+      background: var(--card);
+      cursor: pointer;
+      transition: background-color 75ms, color 75ms;
+    }
+    .list-card:hover,
+    .list-card.active {
+      background: var(--foreground);
+      color: var(--background);
+    }
+    .col { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; min-width: 0; }
+    .col-path { font-size: 12px; font-weight: 700; letter-spacing: 0.01em; }
+    .col-path .badge { width: auto; margin-right: 4px; }
+    .col-time { font-size: 11px; color: var(--muted-foreground); text-align: right; transition: color 75ms; }
+    .lc-del { justify-self: end; font-size: 13px; color: var(--muted-foreground); padding: 0; line-height: 1; transition: color 75ms; }
+    .lc-del:hover { color: var(--destructive); }
+    .list-card .badge { justify-self: start; width: 100%; justify-content: center; }
+    /* crypto 徽章点击切换 简写/全称 */
+    .crypto-toggle { cursor: pointer; position: relative; }
+    .crypto-toggle .badge { max-width: 100%; overflow: hidden; text-overflow: ellipsis; }
+    .crypto-toggle:hover::after {
+      content: '点击切换名称';
+      position: absolute; top: -26px; left: 50%; transform: translateX(-50%);
+      background: var(--foreground); color: var(--background);
+      font-size: 10px; line-height: 1; padding: 4px 6px; border-radius: var(--radius-2px);
+      white-space: nowrap; z-index: 30; pointer-events: none;
+    }
+
+    /* 反色状态下子元素微调 */
+    .list-card:hover .col-time,
+    .list-card.active .col-time { color: rgba(23, 23, 23, 0.55); }
+    .list-card:hover .badge,
+    .list-card.active .badge { border-color: rgba(23, 23, 23, 0.35); }
+    .list-card:hover .badge-outline,
+    .list-card.active .badge-outline { color: var(--background); }
+    .list-card:hover .badge-muted,
+    .list-card.active .badge-muted { background: rgba(23, 23, 23, 0.12); color: var(--background); }
+    .list-card:hover .lc-del,
+    .list-card.active .lc-del { color: rgba(23, 23, 23, 0.5); }
+    .list-card:hover .checkbox,
+    .list-card.active .checkbox { border-color: rgba(23, 23, 23, 0.5); }
+    .list-card:hover .checkbox:checked,
+    .list-card.active .checkbox:checked { background: var(--background); border-color: var(--background); }
+    .list-card:hover .checkbox:checked::after,
+    .list-card.active .checkbox:checked::after { color: var(--foreground); }
+
+    .detail-panel {
       flex: 1;
       min-width: 0;
-    }
-    .capture-list-item .item-time {
-      font-size: 11px;
-      color: var(--muted);
-      white-space: nowrap;
-    }
-    .capture-list-item .item-del {
-      opacity: 0;
-      background: none;
-      border: none;
-      color: var(--muted);
-      font-size: 14px;
-      cursor: pointer;
-      padding: 2px 4px;
-      border-radius: 3px;
-      transition: all var(--transition);
-      line-height: 1;
-      flex-shrink: 0;
-      margin-top: 1px;
-    }
-    .capture-list-item:hover .item-del { opacity: 0.5; }
-    .capture-list-item .item-del:hover {
-      opacity: 1 !important;
-      background: var(--accent-light);
-      color: var(--accent);
+      background: var(--card);
+      overflow-y: auto;
     }
 
-    /* Badges */
-    .method-badge {
-      display: inline-block;
-      padding: 1px 6px;
-      border-radius: 3px;
-      font-size: 10px;
-      font-weight: 700;
-      letter-spacing: 0.3px;
-      line-height: 1.5;
-      flex-shrink: 0;
-    }
-    .method-GET    { background: var(--method-get-bg); color: var(--method-get-fg); border: 1px solid var(--method-get-border); }
-    .method-POST   { background: var(--method-post-bg); color: var(--method-post-fg); border: 1px solid var(--method-post-border); }
-    .method-PUT    { background: var(--method-put-bg); color: var(--method-put-fg); border: 1px solid var(--method-put-border); }
-    .method-DELETE { background: var(--method-del-bg); color: var(--method-del-fg); border: 1px solid var(--method-del-border); }
-    .method-default { background: var(--method-default-bg); color: var(--method-default-fg); border: 1px solid var(--method-default-border); }
-
-    .status-badge {
-      display: inline-block;
-      font-size: 10px;
-      font-weight: 600;
-      padding: 1px 5px;
-      border-radius: 3px;
-      flex-shrink: 0;
-    }
-    .status-2xx { background: var(--status-2xx-bg); color: var(--status-2xx-fg); }
-    .status-3xx { background: var(--status-3xx-bg); color: var(--status-3xx-fg); }
-    .status-4xx { background: var(--status-4xx-bg); color: var(--status-4xx-fg); }
-    .status-5xx { background: var(--status-5xx-bg); color: var(--status-5xx-fg); }
-    .status-err  { background: var(--status-err-bg); color: var(--status-err-fg); }
-
-    /* Crypto badges */
-    .crypto-badge {
-      display: inline-block;
-      padding: 1px 6px;
-      border-radius: 3px;
-      font-size: 10px;
-      font-weight: 600;
-      letter-spacing: 0.2px;
-      flex-shrink: 0;
-    }
-    .crypto-badge-eapi   { background: #fce4e4; color: #C20C0C; border: 1px solid #f5c6c6; }
-    .crypto-badge-xeapi  { background: #fef0db; color: #d35400; border: 1px solid #fde2b6; }
-    .crypto-badge-linuxapi { background: #dbeafe; color: #1a56db; border: 1px solid #bdd9fc; }
-    .crypto-badge-weapi  { background: #d4edda; color: #1e7e34; border: 1px solid #b8dfc6; }
-    .crypto-badge-api    { background: #e9ecef; color: #495057; border: 1px solid #ced4da; }
-    .crypto-badge-unknown { background: #f8f9fa; color: #adb5bd; border: 1px solid #dee2e6; }
-
-    [data-theme="dark"] .crypto-badge-eapi   { background: #3d0a0a; color: #f87171; border-color: #5c1515; }
-    [data-theme="dark"] .crypto-badge-xeapi  { background: #3d2a0a; color: #fbbf24; border-color: #5c3d14; }
-    [data-theme="dark"] .crypto-badge-linuxapi { background: #0a1a3d; color: #60a5fa; border-color: #14305c; }
-    [data-theme="dark"] .crypto-badge-weapi  { background: #0a3d14; color: #34d399; border-color: #145c28; }
-    [data-theme="dark"] .crypto-badge-api    { background: #1c1c1c; color: #9ca3af; border-color: #30363d; }
-    [data-theme="dark"] .crypto-badge-unknown { background: #161b22; color: #6e7681; border-color: #30363d; }
-
-    /* ======================== Empty State ======================== */
-    .empty-list {
+    /* ---------------------- 空状态 ---------------------- */
+    .empty {
       display: flex;
       flex-direction: column;
       align-items: center;
       justify-content: center;
-      padding: 48px 20px;
-      color: var(--muted);
-      font-size: 13px;
-    }
-    .empty-list .empty-icon {
-      font-size: 28px;
-      margin-bottom: 12px;
-      opacity: 0.35;
-      font-weight: 300;
-    }
-    .empty-list p { margin-bottom: 4px; }
-
-    /* ======================== Headers Table ======================== */
-    .headers-table {
-      width: 100%;
-      border-collapse: collapse;
-      font-size: 12px;
-      font-family: 'JetBrains Mono', 'Fira Code', 'Courier New', monospace;
-    }
-    .headers-table th,
-    .headers-table td {
-      text-align: left;
-      padding: 6px 12px;
-      border-bottom: 1px solid var(--border);
-    }
-    .headers-table th {
-      color: var(--muted);
-      font-weight: 500;
-      width: 180px;
-      min-width: 120px;
-      background: var(--code-bg);
-    }
-    .headers-table td {
-      color: var(--fg);
-    }
-    .headers-table tr:hover {
-      background: var(--hover-bg);
-    }
-    .headers-table .header-key {
-      color: var(--accent);
-      font-weight: 600;
-      width: 220px;
-      min-width: 160px;
-      max-width: 300px;
-      white-space: nowrap;
-      overflow: hidden;
-      text-overflow: ellipsis;
-      padding-right: 16px;
-      vertical-align: top;
-    }
-    .headers-table td:last-child {
-      word-break: break-all;
-      vertical-align: top;
-    }
-
-    /* ======================== Filter Chips ======================== */
-    .filter-group {
-      display: flex;
-      align-items: center;
-      gap: 4px;
-      flex-wrap: wrap;
-    }
-    .filter-chip {
-      padding: 2px 8px;
-      border: 1px solid var(--border);
-      border-radius: 10px;
-      font-size: 11px;
-      cursor: pointer;
-      background: transparent;
-      color: var(--muted);
-      transition: all var(--transition);
-      white-space: nowrap;
-    }
-    .filter-chip:hover {
-      border-color: var(--accent);
-      color: var(--fg-secondary);
-    }
-    .filter-chip.active {
-      background: var(--accent-light);
-      border-color: var(--accent);
-      color: var(--accent);
-      font-weight: 600;
-    }
-    .filter-sep {
-      width: 1px;
-      height: 18px;
-      background: var(--border);
-      margin: 0 4px;
-      flex-shrink: 0;
-    }
-
-    /* ======================== Duration Badge ======================== */
-    .duration-badge {
-      font-size: 10px;
-      color: var(--muted);
-      font-family: 'JetBrains Mono', 'Courier New', monospace;
-    }
-    .duration-badge.slow { color: var(--warning); }
-    .duration-badge.very-slow { color: var(--accent); }
-
-    /* ======================== Auto Scroll Toggle ======================== */
-    .auto-scroll-btn {
-      background: none;
-      border: 1px solid var(--border);
-      border-radius: var(--radius-sm);
-      color: var(--muted);
-      font-size: 10px;
-      padding: 3px 7px;
-      cursor: pointer;
-      transition: all var(--transition);
-      white-space: nowrap;
-    }
-    .auto-scroll-btn.active {
-      border-color: var(--accent);
-      color: var(--accent);
-      background: var(--accent-light);
-    }
-
-    /* ======================== Format Toggle ======================== */
-    .fmt-group {
-      display: flex;
-      align-items: center;
-      gap: 0;
-      margin-right: 6px;
-      border: 1px solid var(--border);
-      border-radius: var(--radius-sm);
-      overflow: hidden;
-      flex-shrink: 0;
-    }
-    .fmt-btn {
-      background: none;
-      border: none;
-      padding: 3px 8px;
-      font-size: 10px;
-      cursor: pointer;
-      color: var(--muted);
-      transition: all var(--transition);
-      white-space: nowrap;
-    }
-    .fmt-btn:not(:last-child) {
-      border-right: 1px solid var(--border);
-    }
-    .fmt-btn.active {
-      background: var(--accent-light);
-      color: var(--accent);
-      font-weight: 600;
-    }
-    .fmt-btn:hover:not(.active) {
-      color: var(--fg-secondary);
-      background: var(--hover-bg);
-    }
-
-    /* ======================== Batch Ops ======================== */
-    .batch-bar {
-      display: flex;
-      align-items: center;
-      gap: 6px;
-      padding: 6px 18px;
-      border-bottom: 1px solid var(--border);
-      background: var(--status-bg);
-      font-size: 12px;
-      flex-shrink: 0;
-      transition: border-color var(--transition);
-    }
-    .batch-bar .batch-count {
-      color: var(--muted);
-      margin-right: auto;
-    }
-    .batch-bar .batch-count strong { color: var(--fg); }
-    .item-checkbox {
-      flex-shrink: 0;
-      margin-top: 2px;
-      accent-color: var(--accent);
-      cursor: pointer;
-    }
-    .sort-btn {
-      background: none;
-      border: none;
-      color: var(--muted);
-      font-size: 11px;
-      cursor: pointer;
-      padding: 2px 6px;
-      border-radius: 3px;
-      transition: all var(--transition);
-      font-family: inherit;
-    }
-    .sort-btn:hover { color: var(--fg); background: var(--hover-bg); }
-    .sort-btn.active { color: var(--accent); font-weight: 600; }
-
-    /* ======================== Detail Panel ======================== */
-    .detail-panel {
-      background: var(--panel);
-      border: 1px solid var(--border);
-      border-radius: var(--radius);
-      padding: 0;
-      overflow: hidden;
-      animation: fadeSlideIn 0.25s ease;
-      transition: background var(--transition), border-color var(--transition);
-    }
-    @keyframes fadeSlideIn {
-      from { opacity: 0; transform: translateY(6px); }
-      to   { opacity: 1; transform: translateY(0); }
-    }
-
-    .detail-header {
-      padding: 18px 20px 14px;
-      border-bottom: 1px solid var(--border);
-      background: var(--header-bg);
-      transition: background var(--transition), border-color var(--transition);
-    }
-    .detail-header .dh-top {
-      display: flex;
-      align-items: center;
       gap: 8px;
-      margin-bottom: 6px;
+      padding: 48px 20px;
+      color: var(--muted-foreground);
+      text-align: center;
     }
-    .detail-header h2 {
-      font-size: 15px;
-      font-weight: 700;
-      margin: 0;
-      color: var(--accent);
-      word-break: break-all;
+    .empty-glyph { font-size: 22px; opacity: 0.4; letter-spacing: 0.1em; }
+    .empty-title { font-size: 12px; color: var(--foreground); }
+    .empty-hint { font-size: 11px; opacity: 0.7; }
+
+    .empty-fill { min-height: 40vh; }
+
+    /* ---------------------- 详情面板 ---------------------- */
+    .detail-card {
+      display: flex;
+      flex-direction: column;
+      min-height: 100%;
+    }
+    .detail-header { padding: 16px 16px 12px; border-bottom: 1px solid var(--border); }
+    .dh-top { display: flex; align-items: center; gap: 8px; margin-bottom: 6px; }
+    .dh-title {
       flex: 1;
       min-width: 0;
+      font-size: 14px;
+      font-weight: 700;
+      letter-spacing: 0.01em;
+      word-break: break-all;
+      line-height: 1.4;
     }
-    .detail-header .dh-meta {
-      display: flex;
-      align-items: center;
-      gap: 12px;
-      flex-wrap: wrap;
-      font-size: 12px;
-      color: var(--muted);
-    }
+    .dh-meta { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; font-size: 11px; }
+    .dh-meta .dim { color: var(--muted-foreground); }
 
-    /* ======================== Action Buttons ======================== */
     .detail-actions {
       display: flex;
       flex-wrap: wrap;
       gap: 6px;
-      padding: 10px 20px;
+      padding: 10px 16px;
       border-bottom: 1px solid var(--border);
-      background: var(--header-bg);
-      transition: background var(--transition), border-color var(--transition);
     }
-    .action-btn {
+
+    .tabs {
+      display: flex;
+      gap: 0;
+      border-bottom: 1px solid var(--border);
+      overflow-x: auto;
+      flex-shrink: 0;
+      background: var(--background);
+    }
+    .tab {
       display: inline-flex;
       align-items: center;
-      gap: 4px;
-      padding: 4px 10px;
-      border: 1px solid var(--border);
-      border-radius: var(--radius-sm);
-      background: var(--panel);
-      color: var(--fg-secondary);
-      font-size: 11px;
-      cursor: pointer;
-      transition: all var(--transition);
-      white-space: nowrap;
-    }
-    .action-btn:hover {
-      border-color: var(--accent);
-      color: var(--accent);
-      background: var(--accent-light);
-    }
-    .action-btn:active { transform: scale(0.96); }
-    .action-btn.copied {
-      border-color: var(--success);
-      color: var(--success);
-      background: var(--success-bg);
-    }
-
-    /* ======================== Tabs ======================== */
-    .detail-tabs {
-      display: flex;
-      border-bottom: 1px solid var(--border);
-      background: var(--tab-bg);
-      padding: 0 20px;
-      gap: 0;
-      flex-shrink: 0;
-      transition: background var(--transition), border-color var(--transition);
-    }
-    .detail-tab {
-      padding: 8px 16px;
+      gap: 6px;
+      height: 38px;
+      padding: 0 14px;
       font-size: 12px;
-      font-weight: 500;
-      color: var(--muted);
-      cursor: pointer;
+      color: var(--muted-foreground);
       border-bottom: 2px solid transparent;
-      transition: all var(--transition);
-      background: none;
-      border-top: none;
-      border-left: none;
-      border-right: none;
+      white-space: nowrap;
+      transition: color 75ms, border-color 75ms, background-color 75ms;
     }
-    .detail-tab:hover { color: var(--fg-secondary); }
-    .detail-tab.active {
-      color: var(--accent);
-      border-bottom-color: var(--accent);
-    }
-    .detail-tab .tab-count {
-      display: inline-block;
-      margin-left: 4px;
-      padding: 0 5px;
-      font-size: 10px;
-      background: var(--hover-bg);
-      border-radius: 6px;
-      color: var(--muted);
-      transition: background var(--transition);
-    }
-    .detail-tab.active .tab-count {
-      background: var(--accent-light);
-      color: var(--accent);
-    }
-
-    .detail-tab-content {
-      padding: 16px 20px 20px;
-      max-height: calc(100vh - 300px);
-      overflow-y: auto;
-    }
-    .detail-tab-content pre {
-      margin: 0;
-      background: var(--code-bg);
-      border: 1px solid var(--border);
-      border-radius: 6px;
-      padding: 14px;
-      overflow-x: auto;
-      white-space: pre-wrap;
-      word-break: break-all;
-      font-size: 12px;
-      line-height: 1.6;
-      transition: background var(--transition), border-color var(--transition);
-    }
-    .detail-tab-content code {
-      font-family: 'JetBrains Mono', 'Fira Code', 'Courier New', monospace;
-      font-size: 12px;
-    }
-
-    /* ======================== No Selection ======================== */
-    .no-selection {
-      display: flex;
-      flex-direction: column;
+    .tab:hover { color: var(--foreground); background: var(--muted); }
+    .tab.active { color: var(--foreground); border-bottom-color: var(--foreground); }
+    .tab-count {
+      display: inline-flex;
       align-items: center;
       justify-content: center;
-      height: 60vh;
-      color: var(--muted);
-      font-size: 14px;
+      min-width: 16px;
+      height: 16px;
+      padding: 0 4px;
+      font-size: 10px;
+      background: var(--muted);
+      color: var(--muted-foreground);
+      border-radius: var(--radius-2px);
+      transition: background-color 75ms, color 75ms;
     }
-    .no-selection .ns-icon { font-size: 32px; margin-bottom: 12px; opacity: 0.3; font-weight: 300; }
-    .no-selection .ns-text { color: var(--muted); }
-    .no-selection .ns-hint { font-size: 12px; margin-top: 6px; opacity: 0.6; }
+    .tab.active .tab-count { background: var(--foreground); color: var(--background); }
 
-    /* ======================== Toast ======================== */
+    .tab-content { padding: 14px 16px 16px; }
+
+    .block-label {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      font-size: 11px;
+      color: var(--muted-foreground);
+      margin-bottom: 8px;
+      text-transform: uppercase;
+      letter-spacing: 0.04em;
+    }
+    .block-label strong { color: var(--foreground); font-weight: 700; }
+
+    .code-block {
+      background: var(--background);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 12px 14px;
+      overflow-x: auto;
+      font-family: var(--font-mono);
+      font-size: 12px;
+      line-height: 1.7;
+      white-space: pre-wrap;
+      word-break: break-all;
+      color: var(--foreground);
+    }
+
+    /* Headers 表格 */
+    .headers-table { width: 100%; border-collapse: collapse; font-size: 12px; }
+    .headers-table th, .headers-table td {
+      text-align: left;
+      padding: 6px 10px;
+      border: 1px solid var(--border);
+      vertical-align: top;
+    }
+    .headers-table th {
+      color: var(--muted-foreground);
+      font-weight: 500;
+      background: var(--muted);
+      width: 180px;
+      min-width: 120px;
+      font-size: 11px;
+    }
+    .headers-table td { word-break: break-all; }
+    .headers-table tr:hover td { background: var(--accent); color: var(--accent-foreground); }
+
+    /* ---------------------- Toast ---------------------- */
     .toast-container {
       position: fixed;
-      top: 20px;
-      right: 20px;
-      z-index: 10000;
+      top: calc(var(--topbar-h) + 12px);
+      right: 16px;
+      z-index: 200;
       display: flex;
       flex-direction: column;
       gap: 8px;
       pointer-events: none;
     }
     .toast {
-      padding: 10px 18px;
-      background: var(--toast-bg);
-      color: #ffffff;
-      border-radius: 6px;
-      font-size: 13px;
-      box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+      padding: 8px 14px;
+      background: var(--popover);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      color: var(--foreground);
+      font-size: 12px;
+      box-shadow: 0 4px 16px rgba(0, 0, 0, 0.4);
       opacity: 0;
-      transform: translateX(20px);
-      transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+      transform: translateX(16px);
+      transition: opacity 150ms, transform 150ms;
       pointer-events: auto;
       max-width: 360px;
+      animation: shell-slide-in-right 180ms ease-out;
     }
-    .toast.show {
-      opacity: 1;
-      transform: translateX(0);
-    }
-    .toast.toast-success { background: #1e8e3e; }
-    .toast.toast-error   { background: #c62828; }
-    .toast.toast-info    { background: #1565c0; }
+    .toast.show { opacity: 1; transform: translateX(0); }
+    .toast.toast-error { border-color: var(--destructive); color: var(--destructive); }
+    .toast.toast-success { border-color: var(--secondary); color: var(--secondary); }
 
-    /* ======================== Modal ======================== */
+    /* ---------------------- Modal ---------------------- */
     .modal-overlay {
       position: fixed;
-      top: 0; left: 0; right: 0; bottom: 0;
-      background: var(--modal-overlay);
+      inset: 0;
+      z-index: 100;
+      background: rgba(0, 0, 0, 0.6);
       display: flex;
       align-items: center;
       justify-content: center;
-      z-index: 9999;
+      padding: 16px;
       opacity: 0;
-      visibility: hidden;
-      transition: all 0.25s;
+      pointer-events: none;
+      transition: opacity 150ms;
     }
-    .modal-overlay.show {
-      opacity: 1;
-      visibility: visible;
-    }
+    .modal-overlay.show { opacity: 1; pointer-events: auto; animation: shell-backdrop-in 150ms ease-out; }
     .modal {
-      background: var(--panel);
+      width: min(440px, 100%);
+      background: var(--popover);
+      border: 1px solid var(--border);
       border-radius: var(--radius);
-      padding: 24px;
-      min-width: 320px;
-      max-width: 420px;
-      box-shadow: 0 8px 24px rgba(0,0,0,0.15);
-      transform: scale(0.92);
-      transition: transform 0.25s, background var(--transition);
+      padding: 20px;
+      box-shadow: 0 12px 40px rgba(0, 0, 0, 0.5);
+      transform: scale(0.98);
+      transition: transform 150ms;
     }
     .modal-overlay.show .modal { transform: scale(1); }
-    .modal h3 {
-      margin: 0 0 8px;
-      font-size: 16px;
-      font-weight: 600;
-      color: var(--fg);
-    }
-    .modal p {
-      margin: 0 0 20px;
-      font-size: 13px;
-      color: var(--fg-secondary);
-      line-height: 1.5;
-    }
-    .modal-buttons {
-      display: flex;
-      gap: 8px;
-      justify-content: flex-end;
-    }
-    .modal-btn {
-      padding: 7px 16px;
-      border: none;
-      border-radius: var(--radius-sm);
-      font-size: 13px;
-      cursor: pointer;
-      transition: all var(--transition);
-    }
-    .modal-btn-cancel {
-      background: var(--hover-bg);
-      color: var(--fg);
-      border: 1px solid var(--border);
-    }
-    .modal-btn-cancel:hover { background: var(--border); }
-    .modal-btn-confirm {
-      background: var(--accent);
-      color: #ffffff;
-    }
-    .modal-btn-confirm:hover { background: var(--accent-hover); }
-    .modal-btn:active { transform: scale(0.97); }
+    .modal-title { font-size: 14px; font-weight: 700; margin-bottom: 8px; }
+    .modal-message { font-size: 12px; color: var(--muted-foreground); line-height: 1.6; margin-bottom: 20px; }
+    .modal-actions { display: flex; gap: 8px; justify-content: flex-end; }
 
-    /* ======================== Responsive ======================== */
-    @media (max-width: 768px) {
-      .main-container { flex-direction: column; }
-      .left-panel {
-        width: 100% !important;
-        min-width: 0;
-        max-width: none;
-        height: 45vh;
-        border-right: none;
-        border-bottom: 1px solid var(--border);
-      }
+    .modal-wide { width: min(640px, 100%); }
+
+    /* ---------------------- 移动端抽屉 ---------------------- */
+    .drawer-backdrop {
+      position: fixed;
+      inset: 0;
+      z-index: 80;
+      background: rgba(0, 0, 0, 0.5);
+      opacity: 0;
+      pointer-events: none;
+      transition: opacity 150ms;
+    }
+    .drawer-backdrop.show { opacity: 1; pointer-events: auto; animation: shell-backdrop-in 150ms ease-out; }
+
+    /* ---------------------- 响应式 ---------------------- */
+    @media (max-width: 900px) {
+      .list-panel { flex-basis: 50%; }
+    }
+
+    @media (max-width: 767px) {
+      body { overflow: hidden; }
+      .brand-sub { display: none; }
+
+      #drawer-open-btn { display: inline-flex; }
+      #drawer-close-btn { display: inline-flex; }
       .resize-handle { display: none; }
-      .right-panel { height: 55vh; }
-      .detail-tab-content { max-height: calc(50vh - 200px); }
+      .col-resizer { display: none; }
+
+      .workspace { display: block; background: transparent; }
+
+      /* 列表 = 底部抽屉 h-[calc(100dvh-3.5rem)] bg-background/80 + 滑动动画 */
+      .list-panel {
+        position: fixed;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        z-index: 90;
+        height: calc(100dvh - var(--topbar-h));
+        max-width: none;
+        min-width: 0;
+        background: rgba(23, 23, 23, 0.82);
+        backdrop-filter: blur(14px);
+        -webkit-backdrop-filter: blur(14px);
+        border-top: 1px solid var(--border);
+        border-right: none;
+        transform: translateY(100%);
+        opacity: 0;
+        transition: transform 200ms ease, opacity 200ms ease;
+      }
+      .list-panel.open { transform: translateY(0); opacity: 1; }
+      .list-head { padding: 8px 10px; }
+
+      .detail-panel { min-height: 100%; }
+
+      .detail-actions { gap: 4px; }
+      .detail-actions .btn { padding: 0 10px; }
+
+      .toolbar { padding: 8px 10px; }
+      .statusbar { padding: 6px 10px; }
+    }
+
+    @media (max-width: 480px) {
+      .toolbar .search-wrap { min-width: 100%; order: -1; }
+      .topbar-actions { gap: 8px; }
+      .sb-stats { display: none; }
     }
   </style>
 </head>
 <body>
-  <div class="main-container">
-    <!-- ======================== LEFT PANEL ======================== -->
-    <div class="left-panel" id="left-panel">
-      <div class="resize-handle" id="resize-handle"></div>
 
-      <!-- Header -->
-      <div class="header">
-        <div class="header-top">
-          <h1>
-            ［抓包工具］
-            <span class="badge" id="version-badge">加载中...</span>
-          </h1>
-          <button class="theme-toggle" id="theme-toggle" onclick="toggleTheme()" title="切换深色/浅色模式">深色</button>
+  <!-- ======================== 顶栏（fixed 毛玻璃） ======================== -->
+  <header class="topbar">
+    <div class="topbar-inner">
+      <div class="brand">
+        <div class="brand-mark">NC</div>
+        <div>
+          <div class="brand-title">NCM CLAWER</div>
+          <div class="brand-sub">网易云音乐抓包 · 调试</div>
         </div>
-        <p class="sub">网易云音乐客户端抓包 &amp; 调试</p>
+        <span class="badge badge-outline" id="version-badge">v0.0.0</span>
       </div>
-
-      <!-- Status Bar -->
-      <div class="status-bar">
-        <span>
-          <span class="status-dot" id="status-dot"></span>
-          <span class="status-label" id="status-label">等待连接...</span>
-        </span>
-        <span class="status-stat">
-          <strong id="capture-count">0</strong> 条记录
-          <span id="stats-breakdown" style="margin-left:8px;font-size:11px;"></span>
-        </span>
-      </div>
-
-      <!-- Toolbar -->
-      <div class="toolbar">
-        <div class="search-wrap">
-          <i class="search-icon">[搜索]</i>
-          <input type="text" id="search-input" placeholder="搜索路径或参数..." oninput="onSearchInput()">
+      <div class="topbar-actions">
+        <div class="conn">
+          <span class="live-dot" id="status-dot"></span>
+          <span class="live-badge" id="status-label">OFFLINE</span>
         </div>
-        <button class="tool-btn" onclick="exportAll()" title="导出所有数据">导出</button>
-        <div class="fmt-group">
-          <button class="fmt-btn active" data-fmt="json" onclick="setExportFormat('json')" title="JSON 格式">JSON</button>
-          <button class="fmt-btn" data-fmt="markdown" onclick="setExportFormat('markdown')" title="Markdown 格式（更易读）">MD</button>
-        </div>
-        <button class="tool-btn danger" onclick="confirmClear()" title="清空所有抓包数据">清空</button>
-        <button class="auto-scroll-btn active" id="auto-scroll-btn" onclick="toggleAutoScroll()" title="自动滚动到新数据">自动滚动</button>
-        <button class="auto-scroll-btn" id="full-capture-btn" onclick="toggleFullCapture()" title="切换完整抓包模式（捕获全部域名流量）">完整抓包</button>
-      </div>
-      <!-- Filter Bar -->
-      <div class="toolbar" style="padding:5px 18px;flex-wrap:wrap;">
-        <div class="filter-group" id="method-filters">
-          <span style="font-size:10px;color:var(--muted);margin-right:2px;">方法</span>
-          <button class="filter-chip active" data-group="method" data-value="" onclick="setFilter('method', '')">全部</button>
-          <button class="filter-chip" data-group="method" data-value="GET" onclick="setFilter('method', 'GET')">GET</button>
-          <button class="filter-chip" data-group="method" data-value="POST" onclick="setFilter('method', 'POST')">POST</button>
-        </div>
-        <div class="filter-sep"></div>
-        <div class="filter-group" id="status-filters">
-          <span style="font-size:10px;color:var(--muted);margin-right:2px;">状态</span>
-          <button class="filter-chip active" data-group="status" data-value="" onclick="setFilter('status', '')">全部</button>
-          <button class="filter-chip" data-group="status" data-value="2" onclick="setFilter('status', '2')">2xx</button>
-          <button class="filter-chip" data-group="status" data-value="4" onclick="setFilter('status', '4')">4xx</button>
-          <button class="filter-chip" data-group="status" data-value="5" onclick="setFilter('status', '5')">5xx</button>
-        </div>
-        <div class="filter-sep"></div>
-        <div class="filter-group" id="crypto-filters">
-          <span style="font-size:10px;color:var(--muted);margin-right:2px;">加密</span>
-          <button class="filter-chip active" data-group="crypto" data-value="" onclick="setFilter('crypto', '')">全部</button>
-          <button class="filter-chip" data-group="crypto" data-value="eapi" onclick="setFilter('crypto', 'eapi')">EAPI</button>
-          <button class="filter-chip" data-group="crypto" data-value="xeapi" onclick="setFilter('crypto', 'xeapi')">XEAPI</button>
-          <button class="filter-chip" data-group="crypto" data-value="linuxapi" onclick="setFilter('crypto', 'linuxapi')">LinuxAPI</button>
-          <button class="filter-chip" data-group="crypto" data-value="weapi" onclick="setFilter('crypto', 'weapi')">WEAPI</button>
-          <button class="filter-chip" data-group="crypto" data-value="api" onclick="setFilter('crypto', 'api')">API</button>
-        </div>
-        <div class="filter-sep"></div>
-        <div class="filter-group" id="netease-filter">
-          <button class="filter-chip active" data-group="netease" data-value="" onclick="setFilter('netease', '')">全部</button>
-          <button class="filter-chip" data-group="netease" data-value="true" onclick="setFilter('netease', 'true')">仅网易云</button>
-        </div>
-        <div class="filter-sep"></div>
-        <div class="filter-group">
-          <span style="font-size:10px;color:var(--muted);margin-right:2px;">排序</span>
-          <button class="sort-btn" data-sort="time" onclick="setSort('time')">时间</button>
-          <button class="sort-btn" data-sort="duration" onclick="setSort('duration')">耗时</button>
-          <button class="sort-btn" data-sort="path" onclick="setSort('path')">路径</button>
-        </div>
-      </div>
-
-      <!-- Batch Bar -->
-      <div class="batch-bar" id="batch-bar">
-        <label style="display:flex;align-items:center;gap:4px;cursor:pointer;">
-          <input type="checkbox" id="select-all-checkbox" onchange="toggleSelectAll(this.checked)" style="accent-color:var(--accent);">
-          <span style="font-size:12px;">全选</span>
-        </label>
-        <span class="batch-count">
-          已选 <strong id="selected-count">0</strong> 条
-        </span>
-        <button class="tool-btn danger" onclick="batchDelete()" style="font-size:11px;padding:3px 8px;">批量删除</button>
-        <button class="tool-btn" onclick="batchExport()" style="font-size:11px;padding:3px 8px;">导出选中</button>
-      </div>
-
-      <!-- Capture List -->
-      <div class="left-content">
-        <div class="capture-list" id="capture-list"></div>
+        <span class="badge badge-primary" id="count-badge">0 REC</span>
+        <button class="btn btn-outline btn-sm" id="full-capture-btn" onclick="toggleFullCapture()" title="切换完整抓包模式（捕获全部域名流量）">完整抓包</button>
+        <button class="btn btn-outline btn-sm" id="auto-scroll-btn" onclick="toggleAutoScroll()" title="自动滚动到新数据">自动滚动</button>
+        <button class="btn btn-outline btn-icon-sm" id="drawer-open-btn" title="抓包列表" aria-label="打开抓包列表">☰</button>
       </div>
     </div>
+  </header>
 
-    <!-- ======================== RIGHT PANEL ======================== -->
-    <div class="right-panel" id="right-panel">
-      <div id="detail-panel" class="detail-panel">
-        <div class="no-selection">
-          <div class="ns-icon">[ -- ]</div>
-          <div class="ns-text">选择一个抓包记录查看详情</div>
-          <div class="ns-hint">左侧列表点击任意记录</div>
-        </div>
+  <!-- ======================== 主体（类抓包软件布局） ======================== -->
+  <main class="main">
+
+    <!-- 工具栏：搜索 + 操作 + 筛选，一行紧凑 -->
+    <section class="toolbar">
+      <div class="search-wrap">
+        <i class="search-icon" aria-hidden="true">/</i>
+        <input class="input" type="text" id="search-input" placeholder="搜索路径 / 参数 / 头 / 响应..." oninput="onSearchInput()" autocomplete="off" spellcheck="false">
       </div>
-    </div>
-  </div>
+      <div class="btn-group" role="group" aria-label="导出格式">
+        <button class="btn active" data-fmt="json" onclick="setExportFormat('json')" title="JSON 格式">JSON</button>
+        <button class="btn" data-fmt="markdown" onclick="setExportFormat('markdown')" title="Markdown 格式">MD</button>
+      </div>
+      <button class="btn btn-outline btn-sm" onclick="exportAll()" title="导出所有抓包数据">导出</button>
+      <button class="btn btn-outline btn-sm btn-destructive" onclick="confirmClear()" title="清空所有抓包数据">清空</button>
 
-  <!-- ======================== TOAST ======================== -->
+      <div class="f-sep"></div>
+      <div class="filter-group">
+        <span class="filter-label">方法</span>
+        <button class="chip active" data-group="method" data-value="" onclick="setFilter('method', '')">ALL</button>
+        <button class="chip" data-group="method" data-value="GET" onclick="setFilter('method', 'GET')">GET</button>
+        <button class="chip" data-group="method" data-value="POST" onclick="setFilter('method', 'POST')">POST</button>
+        <button class="chip" data-group="method" data-value="PUT" onclick="setFilter('method', 'PUT')">PUT</button>
+        <button class="chip" data-group="method" data-value="DELETE" onclick="setFilter('method', 'DELETE')">DEL</button>
+      </div>
+      <div class="f-sep"></div>
+      <div class="filter-group">
+        <span class="filter-label">状态</span>
+        <button class="chip active" data-group="status" data-value="" onclick="setFilter('status', '')">ALL</button>
+        <button class="chip" data-group="status" data-value="2" onclick="setFilter('status', '2')">2xx</button>
+        <button class="chip" data-group="status" data-value="3" onclick="setFilter('status', '3')">3xx</button>
+        <button class="chip" data-group="status" data-value="4" onclick="setFilter('status', '4')">4xx</button>
+        <button class="chip" data-group="status" data-value="5" onclick="setFilter('status', '5')">5xx</button>
+      </div>
+      <div class="f-sep"></div>
+      <div class="filter-group">
+        <span class="filter-label">加密</span>
+        <button class="chip active" data-group="crypto" data-value="" onclick="setFilter('crypto', '')">ALL</button>
+        <button class="chip" data-group="crypto" data-value="eapi" onclick="setFilter('crypto', 'eapi')">EAPI</button>
+        <button class="chip" data-group="crypto" data-value="xeapi" onclick="setFilter('crypto', 'xeapi')">XEAPI</button>
+        <button class="chip" data-group="crypto" data-value="linuxapi" onclick="setFilter('crypto', 'linuxapi')">LINUX</button>
+        <button class="chip" data-group="crypto" data-value="weapi" onclick="setFilter('crypto', 'weapi')">WEAPI</button>
+        <button class="chip" data-group="crypto" data-value="api" onclick="setFilter('crypto', 'api')">API</button>
+      </div>
+      <div class="f-sep"></div>
+      <div class="filter-group">
+        <span class="filter-label">来源</span>
+        <button class="chip active" data-group="netease" data-value="" onclick="setFilter('netease', '')">ALL</button>
+        <button class="chip" data-group="netease" data-value="true" onclick="setFilter('netease', 'true')">网易云</button>
+      </div>
+      <div class="f-sep"></div>
+      <div class="filter-group">
+        <span class="filter-label">排序</span>
+        <button class="chip" data-sort="time" onclick="setSort('time')">时间</button>
+        <button class="chip" data-sort="duration" onclick="setSort('duration')">耗时</button>
+        <button class="chip" data-sort="path" onclick="setSort('path')">路径</button>
+      </div>
+    </section>
+
+    <!-- 工作区：左表格列表 + 可拖拽分隔条 + 右详情 -->
+    <section class="workspace">
+      <div class="list-panel" id="list-panel">
+        <div class="list-head">
+          <span class="col" style="grid-column:1;"></span>
+          <span class="col" data-col="method">METHOD<span class="col-resizer" data-col="method" title="拖拽调整宽度，双击恢复默认"></span></span>
+          <span class="col" data-col="path">PATH<span class="col-resizer" data-col="path" title="拖拽调整宽度，双击恢复默认"></span></span>
+          <span class="col" data-col="status">STATUS<span class="col-resizer" data-col="status" title="拖拽调整宽度，双击恢复默认"></span></span>
+          <span class="col" data-col="crypto">CRYPTO<span class="col-resizer" data-col="crypto" title="拖拽调整宽度，双击恢复默认"></span></span>
+          <span class="col" data-col="duration">DURATION<span class="col-resizer" data-col="duration" title="拖拽调整宽度，双击恢复默认"></span></span>
+          <span class="col" data-col="time">TIME<span class="col-resizer" data-col="time" title="拖拽调整宽度，双击恢复默认"></span></span>
+          <button class="btn btn-ghost btn-icon-xs" id="drawer-close-btn" title="关闭列表" aria-label="关闭列表">×</button>
+        </div>
+        <div class="list-grid" id="capture-list"></div>
+      </div>
+      <div class="resize-handle" id="resize-handle" title="拖拽调整列表宽度"></div>
+      <div class="detail-panel" id="detail-panel"></div>
+    </section>
+
+    <!-- 底部状态栏：批量操作 + 统计 -->
+    <section class="statusbar">
+      <label class="label">
+        <input type="checkbox" class="checkbox" id="select-all-checkbox" onchange="toggleSelectAll(this.checked)">
+        全选
+      </label>
+      <span>已选 <strong id="selected-count">0</strong> 条</span>
+      <button class="btn btn-xs btn-destructive" onclick="batchDelete()">批量删除</button>
+      <button class="btn btn-xs btn-outline" onclick="batchExport()">导出选中</button>
+      <span class="sb-stats" id="sb-stats"></span>
+    </section>
+  </main>
+
+  <!-- ======================== 抽屉遮罩 ======================== -->
+  <div class="drawer-backdrop" id="drawer-backdrop" onclick="toggleDrawer(false)"></div>
+
+  <!-- ======================== Toast ======================== -->
   <div class="toast-container" id="toast-container"></div>
 
-  <!-- ======================== MODAL ======================== -->
+  <!-- ======================== 确认 Modal ======================== -->
   <div class="modal-overlay" id="modal-overlay">
     <div class="modal">
-      <h3 id="modal-title">确认操作</h3>
-      <p id="modal-message">确定要执行此操作吗？</p>
-      <div class="modal-buttons">
-        <button class="modal-btn modal-btn-cancel" onclick="closeModal()">取消</button>
-        <button class="modal-btn modal-btn-confirm" id="modal-confirm-btn">确定</button>
+      <h3 class="modal-title" id="modal-title">确认操作</h3>
+      <p class="modal-message" id="modal-message">确定要执行此操作吗？</p>
+      <div class="modal-actions">
+        <button class="btn btn-outline" onclick="closeModal()">取消</button>
+        <button class="btn btn-default" id="modal-confirm-btn">确定</button>
       </div>
     </div>
   </div>
 
-  <!-- ======================== REPLAY MODAL ======================== -->
+  <!-- ======================== 重放 Modal ======================== -->
   <div class="modal-overlay" id="replay-modal">
-    <div class="modal" style="min-width:480px;max-width:640px;">
-      <h3 id="replay-title" style="margin-bottom:12px;">重放请求</h3>
-      <div style="margin-bottom:12px;font-size:12px;color:var(--fg-secondary);">
-        <span id="replay-method" style="font-weight:600;color:var(--accent);"></span>
-        <span id="replay-path" style="margin-left:8px;"></span>
-        <span id="replay-crypto" style="margin-left:8px;color:var(--muted);"></span>
+    <div class="modal modal-wide">
+      <h3 class="modal-title" id="replay-title">重放请求</h3>
+      <div class="dh-meta" style="margin-bottom:12px;">
+        <span class="badge badge-secondary" id="replay-method">POST</span>
+        <span id="replay-path" style="word-break:break-all;"></span>
+        <span class="dim" id="replay-crypto"></span>
       </div>
       <div style="margin-bottom:12px;">
-        <label style="font-size:12px;font-weight:600;color:var(--fg);display:block;margin-bottom:4px;">请求参数 (可修改):</label>
-        <textarea id="replay-params" style="width:100%;height:200px;padding:10px;border:1px solid var(--border);border-radius:var(--radius-sm);background:var(--code-bg);color:var(--fg);font-family:'JetBrains Mono','Courier New',monospace;font-size:12px;resize:vertical;outline:none;"></textarea>
+        <div class="block-label"><strong>请求参数</strong> 可修改</div>
+        <textarea class="textarea" id="replay-params" style="height:200px;" spellcheck="false"></textarea>
       </div>
-      <div class="modal-buttons">
-        <button class="modal-btn modal-btn-cancel" onclick="closeReplayModal()">取消</button>
-        <button class="modal-btn modal-btn-confirm" id="replay-exec-btn" onclick="executeReplay()" style="background:var(--success);">执行重放</button>
+      <div class="modal-actions">
+        <button class="btn btn-outline" onclick="closeReplayModal()">取消</button>
+        <button class="btn btn-default" id="replay-exec-btn" onclick="executeReplay()">执行重放</button>
       </div>
     </div>
   </div>
@@ -1202,36 +1044,44 @@
     let sortBy = 'time';
     let sortAsc = false;
     let exportFormat = 'json';
+    let activeTab = 'params';
+    let showRawPath = false;
 
-    // ======================== Theme ========================
-    function getPreferredTheme() {
-      const stored = localStorage.getItem('theme-preference');
-      if (stored === 'dark' || stored === 'light') return stored;
-      return window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+    // ======================== 工具函数 ========================
+    function escapeHtml(text) {
+      const div = document.createElement('div');
+      div.textContent = text;
+      return div.innerHTML;
     }
-
-    function applyTheme(theme) {
-      document.documentElement.setAttribute('data-theme', theme);
-      localStorage.setItem('theme-preference', theme);
-      const btn = document.getElementById('theme-toggle');
-      if (btn) btn.textContent = theme === 'dark' ? '浅色' : '深色';
+    function formatJson(obj) {
+      try { return JSON.stringify(obj, null, 2); }
+      catch (e) { return String(obj); }
     }
-
-    function toggleTheme() {
-      const current = document.documentElement.getAttribute('data-theme') || 'light';
-      applyTheme(current === 'dark' ? 'light' : 'dark');
+    function countKeys(obj) {
+      if (!obj || typeof obj !== 'object') return 0;
+      return Object.keys(obj).length;
     }
-
-    // Init theme
-    applyTheme(getPreferredTheme());
-
-    // Listen for system theme changes
-    window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', (e) => {
-      const stored = localStorage.getItem('theme-preference');
-      if (!stored) {
-        applyTheme(e.matches ? 'dark' : 'light');
+    function formatDuration(ms) {
+      if (ms == null) return '';
+      if (ms < 1000) return ms + 'ms';
+      return (ms / 1000).toFixed(2) + 's';
+    }
+    function formatTime(timestamp) {
+      try { return new Date(timestamp).toLocaleTimeString('zh-CN', { hour12: false }); }
+      catch (e) { return timestamp; }
+    }
+    function formatFullDate(timestamp) {
+      try { return new Date(timestamp).toLocaleString('zh-CN', { hour12: false }); }
+      catch (e) { return timestamp; }
+    }
+    function filterParam(param) {
+      if (!param || typeof param !== 'object') return param;
+      const filtered = {};
+      for (const key in param) {
+        if (key !== 'e_r' && key !== 'header') filtered[key] = param[key];
       }
-    });
+      return filtered;
+    }
 
     // ======================== Toast ========================
     function showToast(message, type) {
@@ -1241,11 +1091,10 @@
       toast.className = 'toast toast-' + type;
       toast.textContent = message;
       container.appendChild(toast);
-      toast.offsetHeight;
-      toast.classList.add('show');
+      requestAnimationFrame(() => toast.classList.add('show'));
       setTimeout(() => {
         toast.classList.remove('show');
-        setTimeout(() => toast.remove(), 300);
+        setTimeout(() => toast.remove(), 200);
       }, 2200);
     }
 
@@ -1257,10 +1106,7 @@
       const confirmBtn = document.getElementById('modal-confirm-btn');
       const newBtn = confirmBtn.cloneNode(true);
       confirmBtn.parentNode.replaceChild(newBtn, confirmBtn);
-      newBtn.addEventListener('click', () => {
-        closeModal();
-        if (onConfirm) onConfirm();
-      });
+      newBtn.addEventListener('click', () => { closeModal(); if (onConfirm) onConfirm(); });
       overlay.classList.add('show');
     }
     function closeModal() {
@@ -1269,21 +1115,34 @@
     document.getElementById('modal-overlay').addEventListener('click', (e) => {
       if (e.target.id === 'modal-overlay') closeModal();
     });
-    document.addEventListener('click', (e) => {
+    document.getElementById('replay-modal').addEventListener('click', (e) => {
       if (e.target.id === 'replay-modal') closeReplayModal();
     });
 
-    // ======================== Search ========================
+    // ======================== 移动端抽屉 ========================
+    function toggleDrawer(force) {
+      const panel = document.getElementById('list-panel');
+      const backdrop = document.getElementById('drawer-backdrop');
+      const isOpen = force !== undefined ? force : !panel.classList.contains('open');
+      panel.classList.toggle('open', isOpen);
+      backdrop.classList.toggle('show', isOpen);
+    }
+    function isMobile() {
+      return window.matchMedia('(max-width: 767px)').matches;
+    }
+    window.addEventListener('resize', () => {
+      if (!isMobile()) toggleDrawer(false);
+    });
+
+    // ======================== 搜索 / 筛选 ========================
     function onSearchInput() {
       searchQuery = document.getElementById('search-input').value.trim().toLowerCase();
       renderCaptureList();
     }
 
     function matchesFilters(item) {
-      // 搜索过滤
       if (searchQuery) {
         const q = searchQuery;
-        // 基础字段
         if ((item.path || '').toLowerCase().includes(q)) return true;
         if ((item.hostname || '').toLowerCase().includes(q)) return true;
         if ((item.rawPath || '').toLowerCase().includes(q)) return true;
@@ -1291,44 +1150,34 @@
         if ((item.method || '').toLowerCase().includes(q)) return true;
         if (String(item.statusCode || '').includes(q)) return true;
         if ((item.error || '').toLowerCase().includes(q)) return true;
-        // 对象字段 -> JSON 字符串搜索
         const objFields = ['param', 'response', 'requestHeaders', 'responseHeaders'];
         for (const key of objFields) {
           const val = item[key];
           if (val && typeof val === 'object') {
-            try {
-              if (JSON.stringify(val).toLowerCase().includes(q)) return true;
-            } catch (_) {}
+            try { if (JSON.stringify(val).toLowerCase().includes(q)) return true; } catch (_) {}
           }
         }
-        // 响应体纯文本
         if (item.responseBody && item.responseBody.toLowerCase().includes(q)) return true;
         return false;
       }
       return true;
     }
     function matchesFiltersStrict(item) {
-      // 方法过滤
       if (filterMethod && (item.method || '').toUpperCase() !== filterMethod) return false;
-      // 状态码过滤
       if (filterStatus) {
         const codeGroup = String(item.statusCode || '')[0];
         if (codeGroup !== filterStatus) return false;
       }
-      // 加密类型过滤
       if (filterCrypto && (item.crypto || '') !== filterCrypto) return false;
-      // 网易云过滤
       if (filterNetease === 'true' && !item.isNetease) return false;
       return true;
     }
 
-    // ======================== Filter Functions ========================
     function setFilter(group, value) {
       const key = 'filter' + group.charAt(0).toUpperCase() + group.slice(1);
       if (window[key] === value) return;
       window[key] = value;
-      // 更新 chip 高亮
-      document.querySelectorAll(`.filter-chip[data-group="${group}"]`).forEach(el => {
+      document.querySelectorAll('.filter-group .chip[data-group="' + group + '"]').forEach(el => {
         el.classList.toggle('active', el.dataset.value === value);
       });
       renderCaptureList();
@@ -1336,7 +1185,7 @@
 
     function setExportFormat(fmt) {
       exportFormat = fmt;
-      document.querySelectorAll('.fmt-btn').forEach(el => {
+      document.querySelectorAll('.btn-group .btn[data-fmt]').forEach(el => {
         el.classList.toggle('active', el.dataset.fmt === fmt);
       });
     }
@@ -1353,8 +1202,9 @@
       .then(data => {
         if (data.success) {
           btn.classList.toggle('active', data.fullCapture);
-          btn.textContent = data.fullCapture ? '完整抓包' : '普通模式';
-          showToast(data.fullCapture ? '完整抓包模式已开启，将捕获所有域名流量' : '已切换为普通模式，仅捕获网易云域名', 'info');
+          btn.textContent = data.fullCapture ? '完整抓包 ON' : '完整抓包';
+          btn.classList.toggle('btn-default', data.fullCapture);
+          showToast(data.fullCapture ? '完整抓包已开启，捕获全部域名' : '已切换为普通模式', 'info');
         }
       })
       .catch(e => showToast('设置失败: ' + e.message, 'error'));
@@ -1364,18 +1214,19 @@
       autoScroll = !autoScroll;
       const btn = document.getElementById('auto-scroll-btn');
       btn.classList.toggle('active', autoScroll);
+      btn.classList.toggle('btn-default', autoScroll);
       btn.textContent = autoScroll ? '自动滚动' : '手动';
     }
 
-    // ======================== Sort Functions ========================
+    // ======================== 排序 ========================
     function setSort(field) {
       if (sortBy === field) {
         sortAsc = !sortAsc;
       } else {
         sortBy = field;
-        sortAsc = field === 'time' ? false : false;
+        sortAsc = false;
       }
-      document.querySelectorAll('.sort-btn').forEach(el => {
+      document.querySelectorAll('.filters .chip[data-sort]').forEach(el => {
         const isActive = el.dataset.sort === sortBy;
         el.classList.toggle('active', isActive);
         if (isActive) {
@@ -1391,23 +1242,17 @@
       const arr = [...data];
       arr.sort((a, b) => {
         let cmp = 0;
-        switch(sortBy) {
-          case 'time':
-            cmp = (a.timestamp || '').localeCompare(b.timestamp || '');
-            break;
-          case 'duration':
-            cmp = (a.duration || 0) - (b.duration || 0);
-            break;
-          case 'path':
-            cmp = (a.path || '').localeCompare(b.path || '');
-            break;
+        switch (sortBy) {
+          case 'time': cmp = (a.timestamp || '').localeCompare(b.timestamp || ''); break;
+          case 'duration': cmp = (a.duration || 0) - (b.duration || 0); break;
+          case 'path': cmp = (a.path || '').localeCompare(b.path || ''); break;
         }
         return sortAsc ? cmp : -cmp;
       });
       return arr;
     }
 
-    // ======================== Batch Functions ========================
+    // ======================== 批量操作 ========================
     function toggleSelectAll(checked) {
       const filtered = capturedData.filter(item => matchesFilters(item) && matchesFiltersStrict(item));
       filtered.forEach(item => {
@@ -1418,14 +1263,12 @@
       updateBatchUI();
       renderCaptureList();
     }
-
     function toggleItemSelection(index) {
       if (selectedItems.has(index)) selectedItems.delete(index);
       else selectedItems.add(index);
       updateBatchUI();
       renderCaptureList();
     }
-
     function updateBatchUI() {
       const count = selectedItems.size;
       document.getElementById('selected-count').textContent = count;
@@ -1436,116 +1279,81 @@
         allCheck.indeterminate = count > 0 && !allCheck.checked;
       }
     }
-
     function batchDelete() {
       if (selectedItems.size === 0) return showToast('请先选择要删除的记录', 'info');
-      showConfirm(
-        '批量删除',
-        '确定要删除选中的 ' + selectedItems.size + ' 条记录吗？',
-        () => {
-          const sorted = [...selectedItems].sort((a,b) => b - a);
-          sorted.forEach(idx => capturedData.splice(idx, 1));
-          selectedItems.clear();
-          if (selectedIndex >= capturedData.length) selectedIndex = -1;
-          renderCaptureList();
-          updateBatchUI();
-          if (selectedIndex === -1) {
-            document.getElementById('detail-panel').innerHTML = `
-              <div class="no-selection">
-                <div class="ns-icon">[ -- ]</div>
-                <div class="ns-text">选择一个抓包记录查看详情</div>
-              </div>
-            `;
-          }
-          showToast('已删除 ' + sorted.length + ' 条记录', 'info');
-        }
-      );
+      showConfirm('批量删除', '确定要删除选中的 ' + selectedItems.size + ' 条记录吗？', () => {
+        const sorted = [...selectedItems].sort((a, b) => b - a);
+        sorted.forEach(idx => capturedData.splice(idx, 1));
+        selectedItems.clear();
+        if (selectedIndex >= capturedData.length) selectedIndex = -1;
+        renderCaptureList();
+        updateBatchUI();
+        if (selectedIndex === -1) renderEmptyDetail();
+        showToast('已删除 ' + sorted.length + ' 条记录', 'info');
+      });
     }
-
     function batchExport() {
       if (selectedItems.size === 0) return showToast('请先选择要导出的记录', 'info');
-      const selected = [...selectedItems].sort((a,b) => a-b).map(idx => capturedData[idx]).filter(Boolean);
-      const isMd = exportFormat === 'markdown';
-      const ext = isMd ? 'md' : 'json';
-      const content = isMd ? renderMarkdownExport(selected) : formatJson(selected);
-      const type = isMd ? 'text/markdown' : 'application/json';
-      const blob = new Blob([content], { type });
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement('a');
-      a.href = url;
-      a.download = 'netease-selected-' + new Date().toISOString().slice(0,19).replace(/[:-]/g,'') + '.' + ext;
-      document.body.appendChild(a);
-      a.click();
-      document.body.removeChild(a);
-      URL.revokeObjectURL(url);
-      showToast('已导出 ' + selected.length + ' 条记录 (' + ext.toUpperCase() + ')', 'success');
+      const selected = [...selectedItems].sort((a, b) => a - b).map(idx => capturedData[idx]).filter(Boolean);
+      downloadExport(selected, 'netease-selected');
+      showToast('已导出 ' + selected.length + ' 条记录', 'success');
     }
 
-    function formatDuration(ms) {
-      if (ms == null) return '';
-      if (ms < 1000) return ms + 'ms';
-      return (ms / 1000).toFixed(2) + 's';
+    // ======================== 徽章助手 ========================
+    function getMethodBadge(method) {
+      method = (method || '').toUpperCase();
+      return '<span class="badge badge-muted">' + escapeHtml(method || '---') + '</span>';
     }
-
-    function getDurationBadge(ms) {
-      if (ms == null) return '';
-      let cls = '';
-      if (ms > 3000) cls = 'very-slow';
-      else if (ms > 1000) cls = 'slow';
-      return `<span class="duration-badge ${cls}">${formatDuration(ms)}</span>`;
+    function getStatusBadge(code) {
+      if (!code) return '<span class="badge badge-destructive">ERR</span>';
+      const group = Math.floor(code / 100);
+      const cls = (group === 4 || group === 5) ? 'badge-destructive' : 'badge-outline';
+      return '<span class="badge ' + cls + '">' + code + '</span>';
     }
-
-    // ======================== Crypto helpers ========================
     function getCryptoLabel(crypto) {
-      const names = {
-        eapi: 'EAPI', xeapi: 'XEAPI', linuxapi: 'LinuxAPI',
-        weapi: 'WEAPI', api: 'API',
-      };
+      const names = { eapi: 'EAPI', xeapi: 'XEAPI', linuxapi: 'LINUX', weapi: 'WEAPI', api: 'API' };
       const label = names[crypto] || (crypto ? crypto.toUpperCase() : '');
-      return label ? `<span class="crypto-badge crypto-badge-${crypto}">${label}</span>` : '';
+      return label ? '<span class="badge badge-outline">' + label + '</span>' : '';
     }
     function getCryptoName(crypto) {
       const names = {
-        eapi: 'EAPI (AES-128-ECB)',
-        xeapi: 'XEAPI (AES-128-ECB)',
-        linuxapi: 'LinuxAPI (AES-128-ECB)',
-        weapi: 'WEAPI (RSA + AES)',
-        api: 'API (未加密)',
+        eapi: 'EAPI (AES-128-ECB)', xeapi: 'XEAPI (AES-128-ECB)',
+        linuxapi: 'LinuxAPI (AES-128-ECB)', weapi: 'WEAPI (RSA + AES)', api: 'API (未加密)',
       };
       return names[crypto] || crypto || '未知';
     }
-
-    // ======================== Method / Status helpers ========================
-    function getMethodBadge(method) {
-      method = (method || '').toUpperCase();
-      const cls = 'method-' + (['GET','POST','PUT','DELETE'].includes(method) ? method : 'default');
-      return `<span class="method-badge ${cls}">${method || '---'}</span>`;
+    function toggleCryptoDisplay(index, el) {
+      const item = capturedData[index];
+      if (!item || !el) return;
+      el.dataset.expanded = el.dataset.expanded === '1' ? '0' : '1';
+      const expanded = el.dataset.expanded === '1';
+      el.innerHTML = expanded ? '<span class="badge badge-outline">' + getCryptoName(item.crypto) + '</span>'
+                              : getCryptoLabel(item.crypto);
+      el.title = expanded ? '点击切换简写' : '点击切换完整名称';
     }
-    function getStatusBadge(code) {
-      if (!code) return `<span class="status-badge status-err">ERR</span>`;
-      const group = Math.floor(code / 100) + 'xx';
-      return `<span class="status-badge status-${group}">${code}</span>`;
+    function isNeteaseBadge(item) {
+      if (item.isNetease) return '<span class="badge badge-secondary">网易云</span>';
+      return '<span class="badge badge-muted">通用</span>';
     }
 
-    // ======================== Render List ========================
+    // ======================== 渲染列表 ========================
     function renderCaptureList() {
       const container = document.getElementById('capture-list');
-      const countEl = document.getElementById('capture-count');
 
       const filtered = capturedData.filter(item => matchesFilters(item) && matchesFiltersStrict(item));
       const sorted = getSortedData(filtered);
 
-      countEl.textContent = capturedData.length;
+      updateCountBadge();
       updateBatchUI();
 
       if (sorted.length === 0) {
+        const filteredEmpty = searchQuery || filterMethod || filterStatus || filterCrypto || filterNetease;
         container.innerHTML = `
-          <div class="empty-list">
-            <div class="empty-icon">${searchQuery || filterMethod || filterStatus || filterCrypto ? '[ 筛选 ]' : '[ -- ]'}</div>
-            <p>${searchQuery || filterMethod || filterStatus || filterCrypto ? '没有匹配的抓包记录' : '暂无抓包数据'}</p>
-            <p style="font-size:12px;opacity:0.7;">${searchQuery || filterMethod || filterStatus || filterCrypto ? '试试其他筛选条件？' : '请设置代理并开始使用'}</p>
-          </div>
-        `;
+          <div class="empty" style="grid-column:1/-1;">
+            <div class="empty-glyph">[ ${filteredEmpty ? 'FILTER' : '--' } ]</div>
+            <div class="empty-title">${filteredEmpty ? '没有匹配的抓包记录' : '暂无抓包数据'}</div>
+            <div class="empty-hint">${filteredEmpty ? '试试调整筛选条件' : '设置代理后开始抓包'}</div>
+          </div>`;
         return;
       }
 
@@ -1553,234 +1361,217 @@
         const realIdx = capturedData.indexOf(item);
         const isActive = realIdx === selectedIndex;
         const isChecked = selectedItems.has(realIdx);
-        const cryptoLabel = item.crypto ? getCryptoLabel(item.crypto) : '';
+        const cryptoLabel = item.crypto
+          ? `<span class="crypto-toggle" onclick="event.stopPropagation();toggleCryptoDisplay(${realIdx}, this)" title="点击切换完整名称">${getCryptoLabel(item.crypto)}</span>`
+          : '';
         const methodBadge = getMethodBadge(item.method);
         const statusBadge = getStatusBadge(item.statusCode);
         const time = formatTime(item.timestamp);
-        const durBadge = getDurationBadge(item.duration);
+        const durText = item.duration != null ? formatDuration(item.duration) : '';
+        const durCls = item.duration > 3000 ? 'badge-destructive' : (item.duration > 1000 ? 'badge-secondary' : 'badge-outline');
+        const replayMark = item.replay ? '<span class="badge badge-primary" title="重放" style="width:auto;padding:0 4px;font-size:9px;">R</span>' : '';
 
-        const displayPath = item.isNetease ? (item.path || 'Unknown') : (item.hostname ? item.hostname + (item.path ? item.path.replace(/^https?:\/\/[^\/]+/, '') : '') : (item.path || 'Unknown'));
-        const isNeteaseBadge = item.isNetease ? '<span style="font-size:9px;color:var(--accent);border:1px solid var(--accent-border);border-radius:3px;padding:0 4px;margin-left:2px;">网易云</span>' : '';
+        const displayPath = item.isNetease
+          ? (item.path || 'Unknown')
+          : (item.hostname ? item.hostname + (item.path ? item.path.replace(/^https?:\/\/[^/]+/, '') : '') : (item.path || 'Unknown'));
 
         return `
-          <div class="capture-list-item ${isActive ? 'active' : ''}"
+          <div class="list-card ${isActive ? 'active' : ''}"
                data-index="${realIdx}"
-               style="display:flex;align-items:flex-start;gap:6px;">
-            <input type="checkbox" class="item-checkbox" ${isChecked ? 'checked' : ''}
-                   onclick="event.stopPropagation();toggleItemSelection(${realIdx})">
-            <div style="flex:1;min-width:0;cursor:pointer;" onclick="selectCapture(${realIdx})">
-              <div class="item-top">
-                ${methodBadge}
-                <span class="item-path">${escapeHtml(displayPath)}</span>
-                ${cryptoLabel}
-                ${isNeteaseBadge}
-              </div>
-              <div style="display:flex;align-items:center;gap:6px;margin-top:2px;">
-                ${statusBadge}
-                <span class="item-time">${time}</span>
-                ${durBadge}
-                ${item.replay ? '<span style="font-size:9px;color:var(--muted);border:1px solid var(--border);border-radius:3px;padding:0 4px;margin-left:2px;">Replay</span>' : ''}
-              </div>
-            </div>
-            <button class="item-del" onclick="event.stopPropagation();deleteItem(${realIdx})" title="删除" style="margin-top:1px;">x</button>
-          </div>
-        `;
+               onclick="selectCapture(${realIdx})">
+            <input type="checkbox" class="checkbox" ${isChecked ? 'checked' : ''}
+                   onclick="event.stopPropagation();toggleItemSelection(${realIdx})"
+                   aria-label="选择记录">
+            ${methodBadge}
+            <span class="col col-path" title="${escapeHtml(displayPath)}">${replayMark}${escapeHtml(displayPath)}</span>
+            ${statusBadge}
+            ${cryptoLabel}
+            <span class="badge ${durCls}" title="耗时">${durText}</span>
+            <span class="col col-time">${time}</span>
+            <button class="lc-del" onclick="event.stopPropagation();deleteItem(${realIdx})" title="删除">×</button>
+          </div>`;
       }).join('');
     }
 
-    // ======================== Select & Detail ========================
-    let activeTab = 'params';
-    let showRawPath = false;
+    // ======================== 空详情 ========================
+    function renderEmptyDetail() {
+      document.getElementById('detail-panel').innerHTML = `
+        <div class="empty empty-fill">
+          <div class="empty-glyph">[ -- ]</div>
+          <div class="empty-title">选择一个抓包记录查看详情</div>
+          <div class="empty-hint">点击左侧列表任意记录</div>
+        </div>`;
+    }
 
+    // ======================== 选择 & 详情 ========================
     function getDisplayPath(item) {
       if (showRawPath && item && item.rawPath) return item.rawPath;
       return item ? item.path : '';
     }
-
     function getRawPrefix(rawPath) {
       if (!rawPath) return '/api/';
-      var match = rawPath.match(/^(\/[a-z0-9_]+)(\/|$)/);
+      const match = rawPath.match(/^(\/[a-z0-9_]+)(\/|$)/);
       return match ? match[1] + '/' : '/api/';
     }
 
-    function selectCapture(index) {
+    function selectCapture(index, instant) {
       selectedIndex = index;
       const item = capturedData[index];
-      const detailPanel = document.getElementById('detail-panel');
       activeTab = 'params';
       showRawPath = false;
 
       if (!item) {
-        detailPanel.innerHTML = `
-          <div class="no-selection">
-            <div class="ns-icon">[ -- ]</div>
-            <div class="ns-text">选择一个抓包记录查看详情</div>
-          </div>
-        `;
+        renderEmptyDetail();
         renderCaptureList();
         return;
       }
 
       renderDetail(item, index);
       renderCaptureList();
+      if (isMobile()) toggleDrawer(false);
+
       setTimeout(() => {
-        const el = document.querySelector(`.capture-list-item[data-index="${index}"]`);
-        if (el) el.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+        const el = document.querySelector('.list-card[data-index="' + index + '"]');
+        if (el) el.scrollIntoView({ block: 'nearest', behavior: instant ? 'auto' : 'smooth' });
       }, 50);
     }
 
     function renderDetail(item, index) {
       const panel = document.getElementById('detail-panel');
-      const cryptoLabel = item.crypto ? getCryptoLabel(item.crypto) : '';
+      const cryptoLabel = getCryptoLabel(item.crypto);
       const cryptoName = item.crypto ? getCryptoName(item.crypto) : '';
       const methodBadge = getMethodBadge(item.method);
       const statusBadge = getStatusBadge(item.statusCode);
       const fullDate = formatFullDate(item.timestamp);
       const durText = item.duration != null ? formatDuration(item.duration) : '';
-      const durCls = item.duration > 3000 ? 'very-slow' : (item.duration > 1000 ? 'slow' : '');
-      const isNeteaseBadge = item.isNetease ? '<span class="crypto-badge crypto-badge-eapi" style="font-size:10px;">网易云</span>' : '<span class="crypto-badge crypto-badge-api" style="font-size:10px;">通用</span>';
+      const durCls = item.duration > 3000 ? 'badge-destructive' : (item.duration > 1000 ? 'badge-secondary' : 'badge-outline');
+      const neteaseBadge = isNeteaseBadge(item);
 
       const filteredParam = filterParam(item.param);
       const reqHeaders = item.requestHeaders || {};
       const resHeaders = item.responseHeaders || {};
       const reqHCount = countKeys(reqHeaders);
       const resHCount = countKeys(resHeaders);
-      
-      // 非网易云请求显示完整 URL
+
       const detailPath = item.isNetease ? (getDisplayPath(item) || 'Unknown') : (item.path || 'Unknown');
-      const detailHost = item.isNetease ? '' : (item.hostname ? escapeHtml(item.hostname) + ' ' : '');
+      const detailHost = item.isNetease ? '' : (item.hostname ? escapeHtml(item.hostname) : '');
+      const rawPathToggle = item.rawPath
+        ? `<button class="btn btn-outline btn-xs" onclick="event.stopPropagation();togglePathDisplay(${index})" title="切换路径显示">
+             ${showRawPath ? '/api/' : escapeHtml(getRawPrefix(item.rawPath))}
+           </button>`
+        : '';
 
       panel.innerHTML = `
-        <div class="detail-header">
-          <div class="dh-top">
-            ${methodBadge}
-            <h2>${escapeHtml(detailPath)}</h2>
-            ${item.rawPath ? `<button class="path-toggle" onclick="event.stopPropagation();togglePathDisplay(${index})" title="切换路径显示">${showRawPath ? '/api/' : escapeHtml(getRawPrefix(item.rawPath))}</button>` : ''}
+        <article class="detail-card">
+          <header class="detail-header">
+            <div class="dh-top">
+              ${methodBadge}
+              <h2 class="dh-title">${escapeHtml(detailPath)}</h2>
+              ${rawPathToggle}
+            </div>
+            <div class="dh-meta">
+              ${statusBadge}
+              ${cryptoLabel}
+              ${neteaseBadge}
+              <span class="badge ${durCls}">${durText}</span>
+              <span class="dim">${cryptoName}</span>
+              <span class="dim">${fullDate}</span>
+              ${detailHost ? `<span class="dim">${detailHost}</span>` : ''}
+            </div>
+          </header>
+
+          <div class="detail-actions">
+            <button class="btn btn-outline btn-sm" onclick="copyPath(${index})">复制路径</button>
+            <button class="btn btn-outline btn-sm" onclick="copyCurl(${index})">复制 cURL</button>
+            ${item.param ? `<button class="btn btn-outline btn-sm" onclick="copyParam(${index})">复制参数</button>` : ''}
+            <button class="btn btn-outline btn-sm" onclick="copyResponse(${index})">复制响应</button>
+            <button class="btn btn-outline btn-sm" onclick="copyHeaders(${index}, 'req')">请求头</button>
+            <button class="btn btn-outline btn-sm" onclick="copyHeaders(${index}, 'res')">响应头</button>
+            ${item.isNetease ? `<button class="btn btn-default btn-sm" onclick="replayCapture(${index})">重放</button>` : ''}
           </div>
-          <div class="dh-meta">
-            ${statusBadge}
-            ${cryptoLabel}
-            ${isNeteaseBadge}
-            <span class="duration-badge ${durCls}">${durText}</span>
-            <span>${cryptoName ? cryptoName : ''}</span>
-            <span>${fullDate}</span>
-            ${detailHost ? `<span style="color:var(--muted);font-size:11px;">${detailHost}</span>` : ''}
+
+          <nav class="tabs" aria-label="详情标签">
+            ${item.param ? `<button class="tab ${activeTab === 'params' ? 'active' : ''}" onclick="switchTab('params')">
+              请求参数 <span class="tab-count">${countKeys(filteredParam)}</span>
+            </button>` : ''}
+            <button class="tab ${activeTab === 'reqHeaders' ? 'active' : ''}" onclick="switchTab('reqHeaders')">
+              请求头 <span class="tab-count">${reqHCount}</span>
+            </button>
+            <button class="tab ${activeTab === 'resHeaders' ? 'active' : ''}" onclick="switchTab('resHeaders')">
+              响应头 <span class="tab-count">${resHCount}</span>
+            </button>
+            <button class="tab ${activeTab === 'response' ? 'active' : ''}" onclick="switchTab('response')">
+              响应数据 <span class="tab-count">${item.response ? countKeys(item.response) : (item.responseBody ? '1' : 0)}</span>
+            </button>
+            <button class="tab ${activeTab === 'raw' ? 'active' : ''}" onclick="switchTab('raw')">
+              原始 JSON
+            </button>
+          </nav>
+
+          <div class="tab-content" id="detail-tab-content">
+            ${renderTabContent(item, filteredParam)}
           </div>
-        </div>
-
-        <div class="detail-actions">
-          <button class="action-btn" onclick="copyPath(${index})">[复制] 路径</button>
-          <button class="action-btn" onclick="copyCurl(${index})">[复制] cURL</button>
-          ${item.param ? `<button class="action-btn" onclick="copyParam(${index})">[复制] 参数</button>` : ''}
-          <button class="action-btn" onclick="copyResponse(${index})">[复制] 响应</button>
-          <button class="action-btn" onclick="copyHeaders(${index}, 'req')">[复制] 请求头</button>
-          <button class="action-btn" onclick="copyHeaders(${index}, 'res')">[复制] 响应头</button>
-          ${item.isNetease ? `<button class="action-btn" onclick="replayCapture(${index})" style="border-color:var(--success);color:var(--success);">[重放]</button>` : ''}
-        </div>
-
-        <div class="detail-tabs" id="detail-tabs">
-          ${item.param ? `<button class="detail-tab ${activeTab === 'params' ? 'active' : ''}" onclick="switchTab('params')">
-            请求参数
-            <span class="tab-count">${countKeys(filteredParam)}</span>
-          </button>` : ''}
-          <button class="detail-tab ${activeTab === 'reqHeaders' ? 'active' : ''}" onclick="switchTab('reqHeaders')">
-            请求头
-            <span class="tab-count">${reqHCount}</span>
-          </button>
-          <button class="detail-tab ${activeTab === 'resHeaders' ? 'active' : ''}" onclick="switchTab('resHeaders')">
-            响应头
-            <span class="tab-count">${resHCount}</span>
-          </button>
-          <button class="detail-tab ${activeTab === 'response' ? 'active' : ''}" onclick="switchTab('response')">
-            响应数据
-            <span class="tab-count">${item.response ? countKeys(item.response) : (item.responseBody ? '1' : 0)}</span>
-          </button>
-          <button class="detail-tab ${activeTab === 'raw' ? 'active' : ''}" onclick="switchTab('raw')">
-            原始 JSON
-          </button>
-        </div>
-
-        <div class="detail-tab-content" id="detail-tab-content">
-          ${renderTabContent(item, filteredParam)}
-        </div>
-      `;
+        </article>`;
     }
 
     function renderHeadersTable(headers) {
       if (!headers || countKeys(headers) === 0) {
-        return '<div style="text-align:center;padding:20px;color:var(--muted);">暂无请求头数据</div>';
+        return '<div class="empty" style="padding:24px;"><div class="empty-hint">暂无数据</div></div>';
       }
       const rows = Object.entries(headers).map(([key, value]) => {
         const displayValue = Array.isArray(value) ? value.join(', ') : String(value);
-        return `<tr><td class="header-key">${escapeHtml(key)}</td><td>${escapeHtml(displayValue)}</td></tr>`;
+        return '<tr><th>' + escapeHtml(key) + '</th><td>' + escapeHtml(displayValue) + '</td></tr>';
       }).join('');
-      return `<table class="headers-table"><tbody>${rows}</tbody></table>`;
+      return '<table class="headers-table"><tbody>' + rows + '</tbody></table>';
     }
 
     function renderTabContent(item, filteredParam) {
-      switch(activeTab) {
+      switch (activeTab) {
         case 'params':
           return `
-            <strong style="font-size:12px;color:var(--muted);display:block;margin-bottom:8px;">
-              请求参数 (${countKeys(filteredParam)} 个字段)
-            </strong>
-            <pre><code>${formatJson(filteredParam)}</code></pre>
-          `;
+            <div class="block-label"><strong>请求参数</strong> ${countKeys(filteredParam)} 个字段</div>
+            <pre class="code-block">${formatJson(filteredParam)}</pre>`;
         case 'reqHeaders':
           return `
-            <strong style="font-size:12px;color:var(--muted);display:block;margin-bottom:8px;">
-              请求 Headers (${countKeys(item.requestHeaders)} 个)
-            </strong>
-            ${renderHeadersTable(item.requestHeaders)}
-          `;
+            <div class="block-label"><strong>请求 Headers</strong> ${countKeys(item.requestHeaders)} 个</div>
+            ${renderHeadersTable(item.requestHeaders)}`;
         case 'resHeaders':
           return `
-            <strong style="font-size:12px;color:var(--muted);display:block;margin-bottom:8px;">
-              响应 Headers (${countKeys(item.responseHeaders)} 个)
-            </strong>
-            ${renderHeadersTable(item.responseHeaders)}
-          `;
+            <div class="block-label"><strong>响应 Headers</strong> ${countKeys(item.responseHeaders)} 个</div>
+            ${renderHeadersTable(item.responseHeaders)}`;
         case 'response':
           if (!item.response && !item.responseBody) {
             return `
-              <div style="text-align:center;padding:30px;color:var(--muted);">
-                <div style="font-size:24px;margin-bottom:8px;opacity:0.35;">[ 空 ]</div>
-                <div>暂无响应数据</div>
-                ${item.error ? `<div style="font-size:12px;margin-top:6px;color:var(--accent);">错误: ${escapeHtml(item.error)}</div>` : ''}
-              </div>
-            `;
+              <div class="empty" style="padding:32px;">
+                <div class="empty-glyph">[ 空 ]</div>
+                <div class="empty-title">暂无响应数据</div>
+                ${item.error ? '<div class="empty-hint" style="color:var(--destructive);">错误: ' + escapeHtml(item.error) + '</div>' : ''}
+              </div>`;
           }
           if (item.response) {
             return `
-              <strong style="font-size:12px;color:var(--muted);display:block;margin-bottom:8px;">
-                响应数据 (${countKeys(item.response)} 个字段)
-                <span style="font-weight:400;margin-left:8px;">
-                  <label style="cursor:pointer;user-select:none;">
-                    <input type="checkbox" id="toggle-raw" onchange="toggleResponseRaw(${capturedData.indexOf(item)})" style="vertical-align:middle;">
-                    <span style="vertical-align:middle;">原始格式</span>
-                  </label>
-                </span>
-              </strong>
-              <pre><code id="response-content">${formatJson(item.response)}</code></pre>
-            `;
+              <div class="block-label">
+                <strong>响应数据</strong> ${countKeys(item.response)} 个字段
+                <label class="label" style="text-transform:none;letter-spacing:0;">
+                  <input type="checkbox" class="checkbox" id="toggle-raw" onchange="toggleResponseRaw(${capturedData.indexOf(item)})">
+                  原始格式
+                </label>
+              </div>
+              <pre class="code-block" id="response-content">${formatJson(item.response)}</pre>`;
           }
           if (item.responseBody) {
             return `
-              <strong style="font-size:12px;color:var(--muted);display:block;margin-bottom:8px;">
-                响应体 (文本)
-              </strong>
-              <pre><code>${escapeHtml(item.responseBody)}</code></pre>
-            `;
+              <div class="block-label"><strong>响应体</strong> 文本</div>
+              <pre class="code-block">${escapeHtml(item.responseBody)}</pre>`;
           }
           return '';
         case 'raw':
           return `
-            <strong style="font-size:12px;color:var(--muted);display:block;margin-bottom:8px;">
-              完整原始数据
-              <button class="action-btn" style="margin-left:8px;" onclick="copyRaw(${capturedData.indexOf(item)})">[复制] 原始数据</button>
-            </strong>
-            <pre><code>${formatJson(item)}</code></pre>
-          `;
+            <div class="block-label">
+              <strong>完整原始数据</strong>
+              <button class="btn btn-outline btn-xs" onclick="copyRaw(${capturedData.indexOf(item)})">复制</button>
+            </div>
+            <pre class="code-block">${formatJson(item)}</pre>`;
         default:
           return '';
       }
@@ -1791,30 +1582,23 @@
       const item = capturedData[selectedIndex];
       if (item) renderDetail(item, selectedIndex);
     }
-
     function togglePathDisplay(index) {
       showRawPath = !showRawPath;
       const item = capturedData[index];
       if (item) renderDetail(item, index);
     }
-
     function toggleResponseRaw(index) {
       const item = capturedData[index];
       if (!item || !item.response) return;
       const el = document.getElementById('response-content');
       if (!el) return;
-      const raw = document.getElementById('toggle-raw').checked;
-      if (raw) {
-        el.textContent = JSON.stringify(item.response);
-      } else {
-        el.textContent = formatJson(item.response);
-      }
+      el.textContent = document.getElementById('toggle-raw').checked ? JSON.stringify(item.response) : formatJson(item.response);
     }
 
-    // ======================== Copy functions ========================
+    // ======================== 复制 ========================
     function copyToClipboard(text, label) {
       navigator.clipboard.writeText(text).then(() => {
-        showToast(label || '已复制到剪贴板', 'success');
+        showToast(label || '已复制', 'success');
       }).catch(() => {
         const ta = document.createElement('textarea');
         ta.value = text;
@@ -1824,14 +1608,13 @@
         ta.select();
         try {
           document.execCommand('copy');
-          showToast(label || '已复制到剪贴板', 'success');
-        } catch(e) {
+          showToast(label || '已复制', 'success');
+        } catch (e) {
           showToast('复制失败，请手动复制', 'error');
         }
         document.body.removeChild(ta);
       });
     }
-
     function copyPath(index) {
       const item = capturedData[index];
       if (!item) return showToast('无数据', 'error');
@@ -1839,26 +1622,21 @@
       if (!path) return showToast('无路径可复制', 'error');
       copyToClipboard(path, '路径已复制');
     }
-
     function copyParam(index) {
       const item = capturedData[index];
       if (!item) return;
-      const filtered = filterParam(item.param);
-      copyToClipboard(formatJson(filtered), '参数已复制');
+      copyToClipboard(formatJson(filterParam(item.param)), '参数已复制');
     }
-
     function copyResponse(index) {
       const item = capturedData[index];
       if (!item || !item.response) return showToast('无响应数据可复制', 'error');
       copyToClipboard(formatJson(item.response), '响应已复制');
     }
-
     function copyRaw(index) {
       const item = capturedData[index];
       if (!item) return;
       copyToClipboard(formatJson(item), '原始数据已复制');
     }
-
     function copyHeaders(index, type) {
       const item = capturedData[index];
       if (!item) return;
@@ -1869,93 +1647,61 @@
         .join('\n');
       copyToClipboard(text, (type === 'req' ? '请求头' : '响应头') + '已复制');
     }
-
     function copyCurl(index) {
       const item = capturedData[index];
       if (!item) return showToast('数据不完整', 'error');
       const method = (item.method || 'POST').toUpperCase();
-      let url;
-      if (item.isNetease) {
-        url = 'https://music.163.com' + (getDisplayPath(item) || '');
-      } else {
-        url = item.path || '';
-      }
-      let curl = 'curl -X ' + method + ' \'' + url + '\'';
-
-      // 添加请求头
+      let url = item.isNetease ? ('https://music.163.com' + (getDisplayPath(item) || '')) : (item.path || '');
+      let curl = "curl -X " + method + " '" + url + "'";
       if (item.requestHeaders) {
         Object.entries(item.requestHeaders).forEach(([k, v]) => {
           if (['host', 'content-length', 'proxy-connection'].includes(k.toLowerCase())) return;
-          curl += ' \\\n  -H \'' + k + ': ' + (Array.isArray(v) ? v.join(', ') : v).replace(/'/g, '\'\\\'\'') + '\'';
+          curl += " \\\n  -H '" + k + ': ' + (Array.isArray(v) ? v.join(', ') : v).replace(/'/g, "'\\''") + "'";
         });
       }
-
       if (item.param) {
         const filtered = filterParam(item.param);
         if (Object.keys(filtered).length > 0) {
           const jsonData = JSON.stringify(filtered);
-          curl += ' \\\n  -d \'' + jsonData.replace(/'/g, '\'\\\'\'') + '\'';
+          curl += " \\\n  -d '" + jsonData.replace(/'/g, "'\\''") + "'";
         }
       }
-
       copyToClipboard(curl, 'cURL 已复制');
     }
 
-    // ======================== Delete & Clear & Export ========================
+    // ======================== 删除 / 清空 ========================
     function deleteItem(index) {
       const item = capturedData[index];
       if (!item) return;
       const path = item.path || 'Unknown';
-      showConfirm(
-        '删除抓包记录',
-        '确定要删除 "' + path + '" 的抓包记录吗？',
-        () => {
-          capturedData.splice(index, 1);
-          if (selectedIndex === index) {
-            selectedIndex = -1;
-            document.getElementById('detail-panel').innerHTML = `
-              <div class="no-selection">
-                <div class="ns-icon">[ -- ]</div>
-                <div class="ns-text">选择一个抓包记录查看详情</div>
-              </div>
-            `;
-          } else if (selectedIndex > index) {
-            selectedIndex--;
-          }
-          renderCaptureList();
-          showToast('已删除该记录', 'info');
-        }
-      );
-    }
-
-    function confirmClear() {
-      if (!capturedData || capturedData.length === 0) {
-        return showToast('暂无数据可清空', 'info');
-      }
-      showConfirm(
-        '清空所有数据',
-        '确定要清空全部 ' + capturedData.length + ' 条抓包记录吗？此操作不可撤销。',
-        () => {
-          capturedData = [];
+      showConfirm('删除抓包记录', '确定要删除 "' + path + '" 的抓包记录吗？', () => {
+        capturedData.splice(index, 1);
+        if (selectedIndex === index) {
           selectedIndex = -1;
-          renderCaptureList();
-          document.getElementById('detail-panel').innerHTML = `
-            <div class="no-selection">
-              <div class="ns-icon">[ -- ]</div>
-              <div class="ns-text">选择一个抓包记录查看详情</div>
-            </div>
-          `;
-          fetch('/api/clear', { method: 'POST' })
-            .then(r => r.json())
-            .then(d => {
-              if (d.success) showToast('已清空所有数据', 'info');
-            })
-            .catch(() => showToast('清空请求失败', 'error'));
+          renderEmptyDetail();
+        } else if (selectedIndex > index) {
+          selectedIndex--;
         }
-      );
+        renderCaptureList();
+        showToast('已删除该记录', 'info');
+      });
+    }
+    function confirmClear() {
+      if (!capturedData || capturedData.length === 0) return showToast('暂无数据可清空', 'info');
+      showConfirm('清空所有数据', '确定要清空全部 ' + capturedData.length + ' 条抓包记录吗？此操作不可撤销。', () => {
+        capturedData = [];
+        selectedIndex = -1;
+        selectedItems.clear();
+        renderCaptureList();
+        renderEmptyDetail();
+        fetch('/api/clear', { method: 'POST' })
+          .then(r => r.json())
+          .then(d => { if (d.success) showToast('已清空所有数据', 'info'); })
+          .catch(() => showToast('清空请求失败', 'error'));
+      });
     }
 
-    // ======================== Replay ========================
+    // ======================== 重放 ========================
     let replayFormData = {};
     let replayIndex = -1;
 
@@ -1966,7 +1712,6 @@
       replayFormData = JSON.parse(JSON.stringify(item.param || {}));
       showReplayModal(item);
     }
-
     function showReplayModal(item) {
       const overlay = document.getElementById('replay-modal');
       document.getElementById('replay-title').textContent = '重放请求: ' + (item.path || 'Unknown');
@@ -1976,26 +1721,21 @@
       document.getElementById('replay-params').value = formatJson(replayFormData);
       overlay.classList.add('show');
     }
-
     function closeReplayModal() {
       document.getElementById('replay-modal').classList.remove('show');
     }
-
     function executeReplay() {
       const item = capturedData[replayIndex];
       if (!item) return;
-      
-      // 解析用户修改后的参数
       try {
         replayFormData = JSON.parse(document.getElementById('replay-params').value);
       } catch (e) {
         showToast('参数格式错误，请检查 JSON', 'error');
         return;
       }
-
       const btn = document.getElementById('replay-exec-btn');
       btn.disabled = true;
-      btn.textContent = '重放中...';
+      btn.innerHTML = '<span class="spinner" aria-hidden="true"><span class="spinner-dot"></span><span class="spinner-dot"></span><span class="spinner-dot"></span></span> 重放中';
 
       fetch('/api/replay', {
         method: 'POST',
@@ -2015,192 +1755,145 @@
         if (result.error) {
           showToast('重放失败: ' + result.error, 'error');
         } else {
-          showToast('重放成功！已添加到列表', 'success');
-          // 滚动到最新（重放的结果会追加到末尾）
-          if (capturedData.length > 0) {
-            selectCapture(capturedData.length - 1);
-          }
+          showToast('重放成功，已添加到列表', 'success');
+          if (capturedData.length > 0) selectCapture(capturedData.length - 1);
         }
       })
-      .catch(e => {
-        showToast('重放请求失败: ' + e.message, 'error');
-      })
+      .catch(e => showToast('重放请求失败: ' + e.message, 'error'))
       .finally(() => {
         btn.disabled = false;
         btn.textContent = '执行重放';
       });
     }
 
-    // ======================== Markdown Export ========================
+    // ======================== 导出 ========================
     function renderMarkdownExport(items) {
       const escapeMd = (s) => String(s).replace(/\|/g, '\\|');
       const parts = items.map((item, i) => {
         const lines = [];
-        // 标题
         const method = item.method || 'GET';
         const path = item.path || '/';
-        lines.push(`# ${i + 1}. ${method} \`${path}\``);
+        lines.push('# ' + (i + 1) + '. ' + method + ' `' + path + '`');
         lines.push('');
-
-        // 概述
         const meta = [];
-        if (item.statusCode) meta.push(`**状态:** ${item.statusCode}`);
-        if (item.duration != null) meta.push(`**耗时:** ${item.duration}ms`);
-        if (item.crypto) meta.push(`**加密:** ${item.crypto}`);
-        if (item.hostname) meta.push(`**域名:** ${item.hostname}`);
+        if (item.statusCode) meta.push('**状态:** ' + item.statusCode);
+        if (item.duration != null) meta.push('**耗时:** ' + item.duration + 'ms');
+        if (item.crypto) meta.push('**加密:** ' + item.crypto);
+        if (item.hostname) meta.push('**域名:** ' + item.hostname);
         if (item.isNetease) meta.push('**来源:** 网易云');
-        if (item.error) meta.push(`**错误:** ${item.error}`);
-        lines.push(`> ${meta.join(' | ')}`);
+        if (item.error) meta.push('**错误:** ' + item.error);
+        lines.push('> ' + meta.join(' | '));
         lines.push('');
-
-        // 请求头
         if (item.requestHeaders && Object.keys(item.requestHeaders).length > 0) {
-          lines.push('## 请求头');
-          lines.push('');
-          lines.push('| 名称 | 值 |');
-          lines.push('|------|-----|');
+          lines.push('## 请求头'); lines.push('');
+          lines.push('| 名称 | 值 |'); lines.push('|------|-----|');
           for (const [k, v] of Object.entries(item.requestHeaders)) {
             const val = Array.isArray(v) ? v.join(', ') : String(v);
-            lines.push(`| ${escapeMd(k)} | ${escapeMd(val)} |`);
+            lines.push('| ' + escapeMd(k) + ' | ' + escapeMd(val) + ' |');
           }
           lines.push('');
         }
-
-        // 请求参数
         if (item.param && Object.keys(item.param).length > 0) {
-          lines.push('## 请求参数');
-          lines.push('');
-          lines.push('```json');
-          lines.push(formatJson(item.param));
-          lines.push('```');
-          lines.push('');
+          lines.push('## 请求参数'); lines.push('');
+          lines.push('```json'); lines.push(formatJson(item.param)); lines.push('```'); lines.push('');
         }
-
-        // 响应头
         if (item.responseHeaders && Object.keys(item.responseHeaders).length > 0) {
-          lines.push('## 响应头');
-          lines.push('');
-          lines.push('| 名称 | 值 |');
-          lines.push('|------|-----|');
+          lines.push('## 响应头'); lines.push('');
+          lines.push('| 名称 | 值 |'); lines.push('|------|-----|');
           for (const [k, v] of Object.entries(item.responseHeaders)) {
             const val = Array.isArray(v) ? v.join(', ') : String(v);
-            lines.push(`| ${escapeMd(k)} | ${escapeMd(val)} |`);
+            lines.push('| ' + escapeMd(k) + ' | ' + escapeMd(val) + ' |');
           }
           lines.push('');
         }
-
-        // 响应体
         if (item.response && Object.keys(item.response).length > 0) {
-          lines.push('## 响应体');
-          lines.push('');
-          lines.push('```json');
-          lines.push(formatJson(item.response));
-          lines.push('```');
-          lines.push('');
+          lines.push('## 响应体'); lines.push('');
+          lines.push('```json'); lines.push(formatJson(item.response)); lines.push('```'); lines.push('');
         } else if (item.responseBody) {
-          lines.push('## 响应体（文本）');
-          lines.push('');
-          lines.push('```');
-          lines.push(item.responseBody);
-          lines.push('```');
-          lines.push('');
+          lines.push('## 响应体（文本）'); lines.push('');
+          lines.push('```'); lines.push(item.responseBody); lines.push('```'); lines.push('');
         }
-
-        // 分隔线
-        if (i < items.length - 1) {
-          lines.push('---');
-          lines.push('');
-        }
-
+        if (i < items.length - 1) { lines.push('---'); lines.push(''); }
         return lines.join('\n');
       });
       return parts.join('\n');
     }
-
-    function exportAll() {
-      if (!capturedData || capturedData.length === 0) {
-        return showToast('暂无数据可导出', 'info');
-      }
+    function downloadExport(items, prefix) {
+      if (!items || items.length === 0) return showToast('暂无数据可导出', 'info');
       const isMd = exportFormat === 'markdown';
       const ext = isMd ? 'md' : 'json';
-      const content = isMd ? renderMarkdownExport(capturedData) : formatJson(capturedData);
+      const content = isMd ? renderMarkdownExport(items) : formatJson(items);
       const type = isMd ? 'text/markdown' : 'application/json';
       const blob = new Blob([content], { type });
       const url = URL.createObjectURL(blob);
       const a = document.createElement('a');
       a.href = url;
-      a.download = 'netease-capture-' + new Date().toISOString().slice(0,19).replace(/[:-]/g,'') + '.' + ext;
+      a.download = prefix + '-' + new Date().toISOString().slice(0, 19).replace(/[:-]/g, '') + '.' + ext;
       document.body.appendChild(a);
       a.click();
       document.body.removeChild(a);
       URL.revokeObjectURL(url);
-      showToast('已导出 ' + capturedData.length + ' 条记录 (' + ext.toUpperCase() + ')', 'success');
+    }
+    function exportAll() {
+      if (!capturedData || capturedData.length === 0) return showToast('暂无数据可导出', 'info');
+      downloadExport(capturedData, 'netease-capture');
+      showToast('已导出 ' + capturedData.length + ' 条记录', 'success');
     }
 
-    // ======================== Utility ========================
-    function filterParam(param) {
-      if (!param || typeof param !== 'object') return param;
-      const filtered = {};
-      for (const key in param) {
-        if (key !== 'e_r' && key !== 'header') {
-          filtered[key] = param[key];
-        }
-      }
-      return filtered;
+    // ======================== 顶栏状态 ========================
+    function setConnUI(connected) {
+      const dot = document.getElementById('status-dot');
+      const label = document.getElementById('status-label');
+      dot.classList.toggle('live', connected);
+      label.textContent = connected ? 'LIVE' : 'OFFLINE';
+    }
+    function updateCountBadge() {
+      const el = document.getElementById('count-badge');
+      if (el) el.textContent = capturedData.length + ' REC';
     }
 
-    function formatJson(obj) {
-      try {
-        return JSON.stringify(obj, null, 2);
-      } catch (e) {
-        return String(obj);
-      }
+    // ======================== 状态栏统计 ========================
+    function renderStats(stats) {
+      const el = document.getElementById('sb-stats');
+      if (!el) return;
+      const methods = Object.entries(stats.methods || {}).sort((a, b) => b[1] - a[1]);
+      const cryptos = Object.entries(stats.cryptos || {}).sort((a, b) => b[1] - a[1]);
+      const status = Object.entries(stats.statusGroups || {}).sort((a, b) => b[1] - a[1]);
+      const block = (label, arr) => {
+        if (!arr.length) return '';
+        return '<span class="sb-block">' + label + ' <b>' + arr.slice(0, 3).map(([k, v]) => k + '=' + v).join(' · ') + '</b></span>';
+      };
+      el.innerHTML = block('M', methods) + block('E', cryptos) + block('S', status);
+    }
+    function fetchStats() {
+      fetch('/api/stats')
+        .then(r => r.json())
+        .then(stats => { if (stats && typeof stats.total === 'number') renderStats(stats); })
+        .catch(() => {});
     }
 
-    function formatTime(timestamp) {
-      try {
-        const d = new Date(timestamp);
-        return d.toLocaleTimeString('zh-CN', { hour12: false });
-      } catch(e) { return timestamp; }
-    }
-
-    function formatFullDate(timestamp) {
-      try {
-        const d = new Date(timestamp);
-        return d.toLocaleString('zh-CN', { hour12: false });
-      } catch(e) { return timestamp; }
-    }
-
-    function escapeHtml(text) {
-      const div = document.createElement('div');
-      div.textContent = text;
-      return div.innerHTML;
-    }
-
-    function countKeys(obj) {
-      if (!obj || typeof obj !== 'object') return 0;
-      return Object.keys(obj).length;
-    }
-
-    // ======================== Panel Resize ========================
+    // ======================== 面板拖拽（恢复源布局分栏） ========================
     function initResize() {
       const handle = document.getElementById('resize-handle');
-      const panel = document.getElementById('left-panel');
+      const panel = document.getElementById('list-panel');
+      if (!handle || !panel) return;
       let isResizing = false;
 
-      handle.addEventListener('mousedown', () => {
+      handle.addEventListener('mousedown', (e) => {
         isResizing = true;
         handle.classList.add('resizing');
         document.body.style.cursor = 'col-resize';
         document.body.style.userSelect = 'none';
+        e.preventDefault();
       });
 
       document.addEventListener('mousemove', (e) => {
         if (!isResizing) return;
-        const maxWidth = window.innerWidth * 0.55;
-        const minWidth = 260;
-        let width = Math.max(minWidth, Math.min(maxWidth, e.clientX));
-        panel.style.width = width + 'px';
+        const maxWidth = window.innerWidth * 0.65;
+        const minWidth = 240;
+        const width = Math.max(minWidth, Math.min(maxWidth, e.clientX));
+        panel.style.flexBasis = width + 'px';
+        panel.style.maxWidth = 'none';
       });
 
       document.addEventListener('mouseup', () => {
@@ -2213,48 +1906,117 @@
       });
     }
 
-    // ======================== SSE & Init ========================
+    // ======================== 列宽拖拽（表头分隔线） ========================
+    let resizeCol = null, resizeStartX = 0, resizeStartW = 0;
+
+    function initColumnResize() {
+      restoreColWidths();
+      document.addEventListener('mousedown', (e) => {
+        const resizer = e.target.closest('.col-resizer');
+        if (!resizer || !resizer.dataset.col || isMobile()) return;
+        resizeCol = resizer.dataset.col;
+        resizeStartX = e.clientX;
+        resizeStartW = getRenderedColWidth(resizeCol);
+        document.body.classList.add('col-resizing');
+        document.body.style.cursor = 'col-resize';
+        document.body.style.userSelect = 'none';
+        e.preventDefault();
+      });
+      document.addEventListener('mousemove', (e) => {
+        if (!resizeCol) return;
+        const idx = { method: 1, path: 2, status: 3, crypto: 4, duration: 5, time: 6 }[resizeCol];
+        let w = Math.round(resizeStartW + (e.clientX - resizeStartX));
+        const panel = document.getElementById('list-panel');
+        const head = panel && panel.querySelector('.list-head');
+        if (panel && head && idx != null) {
+          // 上限 = 面板宽度 - 其他列当前渲染宽 - 列间距，防止溢出到右侧详情区
+          const rendered = getComputedStyle(head).gridTemplateColumns.split(' ').map(s => parseFloat(s) || 0);
+          const others = rendered.reduce((sum, c, i) => (i === idx ? sum : sum + c), 0);
+          const maxW = Math.max(28, Math.floor(panel.clientWidth - others - 8 * 7 - 20));
+          w = Math.min(w, maxW);
+        }
+        setColWidth(resizeCol, Math.max(28, w));
+      });
+      document.addEventListener('mouseup', () => {
+        if (!resizeCol) return;
+        resizeCol = null;
+        document.body.classList.remove('col-resizing');
+        document.body.style.cursor = '';
+        document.body.style.userSelect = '';
+      });
+      // 双击把手恢复默认宽度
+      document.addEventListener('dblclick', (e) => {
+        const resizer = e.target.closest('.col-resizer');
+        if (resizer && resizer.dataset.col) resetColWidth(resizer.dataset.col);
+      });
+    }
+
+    function getRenderedColWidth(col) {
+      const idx = { method: 1, path: 2, status: 3, crypto: 4, duration: 5, time: 6 }[col];
+      if (idx == null) return 0;
+      const head = document.querySelector('.list-head');
+      if (!head) return 0;
+      const w = parseFloat(getComputedStyle(head).gridTemplateColumns.split(' ')[idx]);
+      return isNaN(w) ? 0 : w;
+    }
+
+    function setColWidth(col, w) {
+      const root = document.documentElement;
+      if (col === 'path') {
+        root.style.setProperty('--col-path', 'minmax(' + w + 'px, 1fr)');
+      } else {
+        root.style.setProperty('--col-' + col, w + 'px');
+      }
+      localStorage.setItem('ncm-col-' + col, String(w));
+    }
+
+    function resetColWidth(col) {
+      document.documentElement.style.removeProperty('--col-' + col);
+      localStorage.removeItem('ncm-col-' + col);
+    }
+
+    function restoreColWidths() {
+      ['method', 'path', 'status', 'crypto', 'duration', 'time'].forEach(col => {
+        const saved = localStorage.getItem('ncm-col-' + col);
+        if (!saved) return;
+        let w = parseInt(saved, 10);
+        if (!isNaN(w) && w >= 28) {
+          w = Math.min(w, 600); // 保护上限，避免旧值恢复后溢出面板
+          const root = document.documentElement;
+          if (col === 'path') root.style.setProperty('--col-path', 'minmax(' + w + 'px, 1fr)');
+          else root.style.setProperty('--col-' + col, w + 'px');
+        }
+      });
+    }
+
+    // ======================== SSE & 初始化 ========================
     function setupSSE() {
       eventSource = new EventSource('/api/events');
-      const statusDot = document.getElementById('status-dot');
-      const statusLabel = document.getElementById('status-label');
-
       eventSource.onmessage = function(event) {
         try {
           const data = JSON.parse(event.data);
-          statusDot.className = 'status-dot connected';
-          statusLabel.textContent = '已连接';
-
+          setConnUI(true);
           const prevLen = capturedData.length;
           capturedData = data;
           renderCaptureList();
 
-          // 自动滚动到最新
           if (autoScroll && data.length > prevLen && data.length > 0) {
-            const lastIdx = data.length - 1;
-            selectCapture(lastIdx);
+            selectCapture(data.length - 1, true);
           } else if (selectedIndex === -1 && data.length > 0) {
             selectCapture(0);
           } else if (selectedIndex >= data.length) {
             selectedIndex = -1;
-            document.getElementById('detail-panel').innerHTML = `
-              <div class="no-selection">
-                <div class="ns-icon">[ -- ]</div>
-                <div class="ns-text">选择一个抓包记录查看详情</div>
-              </div>
-            `;
+            renderEmptyDetail();
           } else if (selectedIndex >= 0) {
             const item = capturedData[selectedIndex];
             if (item) renderDetail(item, selectedIndex);
           }
-        } catch(e) {
+        } catch (e) {
           console.error('SSE parse error:', e);
         }
       };
-
       eventSource.onerror = function() {
-        statusDot.className = 'status-dot';
-        statusLabel.textContent = '连接断开，正在重试...';
+        setConnUI(false);
       };
     }
 
@@ -2263,29 +2025,10 @@
         .then(r => r.json())
         .then(data => {
           const btn = document.getElementById('full-capture-btn');
-          if (btn) {
-            btn.classList.toggle('active', data.fullCapture);
-            btn.textContent = data.fullCapture ? '完整抓包' : '普通模式';
+          if (btn && data.fullCapture) {
+            btn.classList.add('active', 'btn-default');
+            btn.textContent = '完整抓包 ON';
           }
-        })
-        .catch(() => {});
-    }
-
-    function fetchStats() {
-      fetch('/api/stats')
-        .then(r => r.json())
-        .then(stats => {
-          const el = document.getElementById('stats-breakdown');
-          if (!el) return;
-          const parts = [];
-          if (stats.methods) {
-            const total = stats.total || 0;
-            const methods = Object.entries(stats.methods)
-              .sort((a,b) => b[1] - a[1])
-              .slice(0, 3);
-            parts.push(methods.map(([k,v]) => k + '=' + v).join(' '));
-          }
-          el.textContent = parts.length ? '| ' + parts.join(' | ') : '';
         })
         .catch(() => {});
     }
@@ -2301,7 +2044,6 @@
         });
     }
 
-    // ======================== PWA Service Worker ========================
     function registerSW() {
       if ('serviceWorker' in navigator) {
         navigator.serviceWorker.register('/sw.js').catch(function(err) {
@@ -2312,14 +2054,20 @@
 
     document.addEventListener('DOMContentLoaded', function() {
       fetchVersion();
-      setupSSE();
-      initResize();
-      renderCaptureList();
-      registerSW();
       fetchStats();
       fetchSettings();
+      setupSSE();
+      initResize();
+      initColumnResize();
+      renderEmptyDetail();
+      renderCaptureList();
+      registerSW();
       setInterval(fetchStats, 5000);
-      // 初始化排序按钮状态
+
+      document.getElementById('drawer-open-btn').addEventListener('click', () => toggleDrawer(true));
+      document.getElementById('drawer-close-btn').addEventListener('click', () => toggleDrawer(false));
+
+      // 初始化排序按钮
       setSort('time');
     });
   </script>

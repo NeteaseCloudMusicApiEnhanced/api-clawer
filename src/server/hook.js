@@ -96,6 +96,7 @@ const domainList = [
 	'y.163.com',
 	'interface.music.163.com',
 	'interface3.music.163.com',
+	'interfacepc.music.163.com',
 ];
 
 /**
