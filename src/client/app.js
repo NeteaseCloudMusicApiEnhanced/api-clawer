@@ -2,12 +2,29 @@ const express = require('express');
 const path = require('path');
 const fs = require('fs');
 const axios = require('axios');
+const { randomUUID } = require('crypto');
 require('dotenv').config();
 
 const CAPTURE_FILE = path.join(__dirname, '..', '..', 'captures.jsonl');
 
 let capturedData = [];
 let clients = [];
+
+function ensureCaptureId(data) {
+  if (!data || typeof data !== 'object') return data;
+  if (typeof data.id !== 'string' || !/^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(data.id)) {
+    data.id = randomUUID();
+  }
+  return data;
+}
+
+function rewriteCaptureFile() {
+  fs.writeFileSync(
+    CAPTURE_FILE,
+    capturedData.map(data => JSON.stringify(data)).join('\n') + (capturedData.length ? '\n' : ''),
+    'utf-8'
+  );
+}
 
 // ======================== 数据持久化 ========================
 
@@ -25,7 +42,10 @@ function loadFromFile() {
             try { return JSON.parse(line); }
             catch { return null; }
           })
-          .filter(Boolean);
+          .filter(Boolean)
+          .map(ensureCaptureId);
+        // 旧记录没有稳定 ID；补齐后写回，确保选择与删除跨刷新保持一致。
+        rewriteCaptureFile();
         console.log(`Loaded ${capturedData.length} historical records from ${CAPTURE_FILE}`);
       }
     }
@@ -177,7 +197,7 @@ function createApp() {
   app.use(express.static(path.join(__dirname, 'public')));
 
   app.post('/api/capture', (req, res) => {
-    const data = req.body;
+    const data = ensureCaptureId(req.body);
     capturedData.push(data);
     console.log('Captured data:', data.path);
     // 持久化
@@ -207,6 +227,27 @@ function createApp() {
     res.json({ success: true });
   });
 
+  app.post('/api/delete', (req, res) => {
+    const ids = Array.isArray(req.body.ids) ? [...new Set(req.body.ids.filter(id => typeof id === 'string'))] : [];
+    if (ids.length === 0) return res.status(400).json({ error: 'ids must be a non-empty string array' });
+
+    const idSet = new Set(ids);
+    const previousData = capturedData;
+    const nextData = capturedData.filter(item => !idSet.has(item.id));
+    const deleted = previousData.length - nextData.length;
+
+    try {
+      capturedData = nextData;
+      rewriteCaptureFile();
+      broadcastData();
+      res.json({ success: true, deleted });
+    } catch (e) {
+      capturedData = previousData;
+      console.error('Failed to persist deleted captures:', e.message);
+      res.status(500).json({ error: 'Failed to persist deleted captures' });
+    }
+  });
+
   // 请求重放端点
   app.post('/api/replay', async (req, res) => {
     const { path: apiPath, method, params, crypto, rawPath, requestHeaders } = req.body;
@@ -216,7 +257,10 @@ function createApp() {
     }
 
     try {
-      const result = await replayRequest({ path: apiPath, method, params, crypto, rawPath, requestHeaders });
+      if (!['eapi', 'linuxapi', 'api'].includes(crypto)) {
+        return res.status(400).json({ error: `Unsupported replay crypto: ${crypto || 'unknown'}` });
+      }
+      const result = ensureCaptureId(await replayRequest({ path: apiPath, method, params, crypto, rawPath, requestHeaders }));
       // 将重放结果也加入抓包列表
       capturedData.push(result);
       appendToFile(result);

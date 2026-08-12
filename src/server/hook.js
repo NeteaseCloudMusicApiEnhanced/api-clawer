@@ -450,6 +450,7 @@ hook.request.after = (ctx) => {
 					duration,
 					requestHeaders: ctx.requestHeaders,
 					responseHeaders,
+					isNetease: true,
 				};
 				axios.post(`http://localhost:${process.env.PORT || 3000}/api/capture`, dataToSend)
 					.catch(err => logger.error('Failed to send data to frontend:', err));
@@ -469,6 +470,7 @@ hook.request.after = (ctx) => {
 					duration,
 					requestHeaders: ctx.requestHeaders,
 					responseHeaders,
+					isNetease: true,
 				};
 				axios.post(`http://localhost:${process.env.PORT || 3000}/api/capture`, dataToSend)
 					.catch(err => logger.error('Failed to send data to frontend:', err));

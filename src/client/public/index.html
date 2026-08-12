@@ -6,7 +6,6 @@
   <meta http-equiv="X-UA-Compatible" content="IE=edge">
   <meta name="theme-color" content="#171717">
   <meta name="color-scheme" content="dark">
-  <link rel="manifest" href="/manifest.json">
   <title>NCM CLAWER · 网易云音乐抓包工具</title>
   <style>
     /* =====================================================================
@@ -871,6 +870,12 @@
       .toolbar .search-wrap { min-width: 100%; order: -1; }
       .topbar-actions { gap: 8px; }
       .sb-stats { display: none; }
+      .list-head,
+      .list-card {
+        grid-template-columns: var(--col-check) var(--col-method) minmax(0, 1fr) var(--col-status) var(--col-del);
+      }
+      .list-head > :nth-child(5), .list-head > :nth-child(6), .list-head > :nth-child(7),
+      .list-card > :nth-child(5), .list-card > :nth-child(6), .list-card > :nth-child(7) { display: none; }
     }
   </style>
 </head>
@@ -895,7 +900,7 @@
         <span class="badge badge-primary" id="count-badge">0 REC</span>
         <button class="btn btn-outline btn-sm" id="full-capture-btn" onclick="toggleFullCapture()" title="切换完整抓包模式（捕获全部域名流量）">完整抓包</button>
         <button class="btn btn-outline btn-sm" id="auto-scroll-btn" onclick="toggleAutoScroll()" title="自动滚动到新数据">自动滚动</button>
-        <button class="btn btn-outline btn-icon-sm" id="drawer-open-btn" title="抓包列表" aria-label="打开抓包列表">☰</button>
+        <button class="btn btn-outline btn-icon-sm" id="drawer-open-btn" title="抓包列表" aria-label="打开抓包列表" aria-controls="list-panel" aria-expanded="false">☰</button>
       </div>
     </div>
   </header>
@@ -961,7 +966,7 @@
 
     <!-- 工作区：左表格列表 + 可拖拽分隔条 + 右详情 -->
     <section class="workspace">
-      <div class="list-panel" id="list-panel">
+      <div class="list-panel" id="list-panel" aria-label="抓包记录列表">
         <div class="list-head">
           <span class="col" style="grid-column:1;"></span>
           <span class="col" data-col="method">METHOD<span class="col-resizer" data-col="method" title="拖拽调整宽度，双击恢复默认"></span></span>
@@ -998,8 +1003,8 @@
   <div class="toast-container" id="toast-container"></div>
 
   <!-- ======================== 确认 Modal ======================== -->
-  <div class="modal-overlay" id="modal-overlay">
-    <div class="modal">
+  <div class="modal-overlay" id="modal-overlay" aria-hidden="true">
+    <div class="modal" role="dialog" aria-modal="true" aria-labelledby="modal-title">
       <h3 class="modal-title" id="modal-title">确认操作</h3>
       <p class="modal-message" id="modal-message">确定要执行此操作吗？</p>
       <div class="modal-actions">
@@ -1010,8 +1015,8 @@
   </div>
 
   <!-- ======================== 重放 Modal ======================== -->
-  <div class="modal-overlay" id="replay-modal">
-    <div class="modal modal-wide">
+  <div class="modal-overlay" id="replay-modal" aria-hidden="true">
+    <div class="modal modal-wide" role="dialog" aria-modal="true" aria-labelledby="replay-title">
       <h3 class="modal-title" id="replay-title">重放请求</h3>
       <div class="dh-meta" style="margin-bottom:12px;">
         <span class="badge badge-secondary" id="replay-method">POST</span>
@@ -1032,7 +1037,7 @@
   <script>
     // ======================== State ========================
     let capturedData = [];
-    let selectedIndex = -1;
+    let selectedId = null;
     let searchQuery = '';
     var filterMethod = '';
     var filterStatus = '';
@@ -1046,6 +1051,7 @@
     let exportFormat = 'json';
     let activeTab = 'params';
     let showRawPath = false;
+    let lastFocusedElement = null;
 
     // ======================== 工具函数 ========================
     function escapeHtml(text) {
@@ -1056,6 +1062,15 @@
     function formatJson(obj) {
       try { return JSON.stringify(obj, null, 2); }
       catch (e) { return String(obj); }
+    }
+    function escapeJson(obj) { return escapeHtml(formatJson(obj)); }
+    function getItemById(id) { return capturedData.find(item => item.id === id); }
+    function getIndexById(id) { return capturedData.findIndex(item => item.id === id); }
+    function checkResponse(response) {
+      if (response.ok) return response;
+      return response.json().catch(() => ({})).then(data => {
+        throw new Error(data.error || ('HTTP ' + response.status));
+      });
     }
     function countKeys(obj) {
       if (!obj || typeof obj !== 'object') return 0;
@@ -1073,6 +1088,9 @@
     function formatFullDate(timestamp) {
       try { return new Date(timestamp).toLocaleString('zh-CN', { hour12: false }); }
       catch (e) { return timestamp; }
+    }
+    function includesQuery(value, query) {
+      return value != null && String(value).toLowerCase().includes(query);
     }
     function filterParam(param) {
       if (!param || typeof param !== 'object') return param;
@@ -1108,9 +1126,14 @@
       confirmBtn.parentNode.replaceChild(newBtn, confirmBtn);
       newBtn.addEventListener('click', () => { closeModal(); if (onConfirm) onConfirm(); });
       overlay.classList.add('show');
+      overlay.setAttribute('aria-hidden', 'false');
+      lastFocusedElement = document.activeElement;
+      newBtn.focus();
     }
     function closeModal() {
       document.getElementById('modal-overlay').classList.remove('show');
+      document.getElementById('modal-overlay').setAttribute('aria-hidden', 'true');
+      if (lastFocusedElement) lastFocusedElement.focus();
     }
     document.getElementById('modal-overlay').addEventListener('click', (e) => {
       if (e.target.id === 'modal-overlay') closeModal();
@@ -1126,6 +1149,8 @@
       const isOpen = force !== undefined ? force : !panel.classList.contains('open');
       panel.classList.toggle('open', isOpen);
       backdrop.classList.toggle('show', isOpen);
+      document.getElementById('drawer-open-btn').setAttribute('aria-expanded', String(isOpen));
+      if (isOpen) document.getElementById('drawer-close-btn').focus();
     }
     function isMobile() {
       return window.matchMedia('(max-width: 767px)').matches;
@@ -1143,13 +1168,13 @@
     function matchesFilters(item) {
       if (searchQuery) {
         const q = searchQuery;
-        if ((item.path || '').toLowerCase().includes(q)) return true;
-        if ((item.hostname || '').toLowerCase().includes(q)) return true;
-        if ((item.rawPath || '').toLowerCase().includes(q)) return true;
-        if ((item.crypto || '').toLowerCase().includes(q)) return true;
-        if ((item.method || '').toLowerCase().includes(q)) return true;
+        if (includesQuery(item.path, q)) return true;
+        if (includesQuery(item.hostname, q)) return true;
+        if (includesQuery(item.rawPath, q)) return true;
+        if (includesQuery(item.crypto, q)) return true;
+        if (includesQuery(item.method, q)) return true;
         if (String(item.statusCode || '').includes(q)) return true;
-        if ((item.error || '').toLowerCase().includes(q)) return true;
+        if (includesQuery(item.error, q)) return true;
         const objFields = ['param', 'response', 'requestHeaders', 'responseHeaders'];
         for (const key of objFields) {
           const val = item[key];
@@ -1157,7 +1182,7 @@
             try { if (JSON.stringify(val).toLowerCase().includes(q)) return true; } catch (_) {}
           }
         }
-        if (item.responseBody && item.responseBody.toLowerCase().includes(q)) return true;
+        if (includesQuery(item.responseBody, q)) return true;
         return false;
       }
       return true;
@@ -1198,7 +1223,7 @@
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ fullCapture: newState }),
       })
-      .then(r => r.json())
+      .then(checkResponse).then(r => r.json())
       .then(data => {
         if (data.success) {
           btn.classList.toggle('active', data.fullCapture);
@@ -1219,14 +1244,14 @@
     }
 
     // ======================== 排序 ========================
-    function setSort(field) {
-      if (sortBy === field) {
+    function setSort(field, initialize) {
+      if (sortBy === field && !initialize) {
         sortAsc = !sortAsc;
       } else {
         sortBy = field;
         sortAsc = false;
       }
-      document.querySelectorAll('.filters .chip[data-sort]').forEach(el => {
+      document.querySelectorAll('.filter-group .chip[data-sort]').forEach(el => {
         const isActive = el.dataset.sort === sortBy;
         el.classList.toggle('active', isActive);
         if (isActive) {
@@ -1256,16 +1281,15 @@
     function toggleSelectAll(checked) {
       const filtered = capturedData.filter(item => matchesFilters(item) && matchesFiltersStrict(item));
       filtered.forEach(item => {
-        const idx = capturedData.indexOf(item);
-        if (checked) selectedItems.add(idx);
-        else selectedItems.delete(idx);
+        if (checked) selectedItems.add(item.id);
+        else selectedItems.delete(item.id);
       });
       updateBatchUI();
       renderCaptureList();
     }
-    function toggleItemSelection(index) {
-      if (selectedItems.has(index)) selectedItems.delete(index);
-      else selectedItems.add(index);
+    function toggleItemSelection(id) {
+      if (selectedItems.has(id)) selectedItems.delete(id);
+      else selectedItems.add(id);
       updateBatchUI();
       renderCaptureList();
     }
@@ -1275,26 +1299,19 @@
       const allCheck = document.getElementById('select-all-checkbox');
       if (allCheck) {
         const filtered = capturedData.filter(item => matchesFilters(item) && matchesFiltersStrict(item));
-        allCheck.checked = filtered.length > 0 && filtered.every(item => selectedItems.has(capturedData.indexOf(item)));
+        allCheck.checked = filtered.length > 0 && filtered.every(item => selectedItems.has(item.id));
         allCheck.indeterminate = count > 0 && !allCheck.checked;
       }
     }
     function batchDelete() {
       if (selectedItems.size === 0) return showToast('请先选择要删除的记录', 'info');
       showConfirm('批量删除', '确定要删除选中的 ' + selectedItems.size + ' 条记录吗？', () => {
-        const sorted = [...selectedItems].sort((a, b) => b - a);
-        sorted.forEach(idx => capturedData.splice(idx, 1));
-        selectedItems.clear();
-        if (selectedIndex >= capturedData.length) selectedIndex = -1;
-        renderCaptureList();
-        updateBatchUI();
-        if (selectedIndex === -1) renderEmptyDetail();
-        showToast('已删除 ' + sorted.length + ' 条记录', 'info');
+        deleteCaptures([...selectedItems]);
       });
     }
     function batchExport() {
       if (selectedItems.size === 0) return showToast('请先选择要导出的记录', 'info');
-      const selected = [...selectedItems].sort((a, b) => a - b).map(idx => capturedData[idx]).filter(Boolean);
+      const selected = capturedData.filter(item => selectedItems.has(item.id));
       downloadExport(selected, 'netease-selected');
       showToast('已导出 ' + selected.length + ' 条记录', 'success');
     }
@@ -1306,28 +1323,28 @@
     }
     function getStatusBadge(code) {
       if (!code) return '<span class="badge badge-destructive">ERR</span>';
-      const group = Math.floor(code / 100);
+      const group = Math.floor(Number(code) / 100);
       const cls = (group === 4 || group === 5) ? 'badge-destructive' : 'badge-outline';
-      return '<span class="badge ' + cls + '">' + code + '</span>';
+      return '<span class="badge ' + cls + '">' + escapeHtml(String(code)) + '</span>';
     }
     function getCryptoLabel(crypto) {
       const names = { eapi: 'EAPI', xeapi: 'XEAPI', linuxapi: 'LINUX', weapi: 'WEAPI', api: 'API' };
-      const label = names[crypto] || (crypto ? crypto.toUpperCase() : '');
-      return label ? '<span class="badge badge-outline">' + label + '</span>' : '';
+      const label = names[crypto] || (crypto ? String(crypto).toUpperCase() : '');
+      return label ? '<span class="badge badge-outline">' + escapeHtml(label) + '</span>' : '';
     }
     function getCryptoName(crypto) {
       const names = {
         eapi: 'EAPI (AES-128-ECB)', xeapi: 'XEAPI (AES-128-ECB)',
         linuxapi: 'LinuxAPI (AES-128-ECB)', weapi: 'WEAPI (RSA + AES)', api: 'API (未加密)',
       };
-      return names[crypto] || crypto || '未知';
+      return names[crypto] || String(crypto || '未知');
     }
     function toggleCryptoDisplay(index, el) {
       const item = capturedData[index];
       if (!item || !el) return;
       el.dataset.expanded = el.dataset.expanded === '1' ? '0' : '1';
       const expanded = el.dataset.expanded === '1';
-      el.innerHTML = expanded ? '<span class="badge badge-outline">' + getCryptoName(item.crypto) + '</span>'
+      el.innerHTML = expanded ? '<span class="badge badge-outline">' + escapeHtml(getCryptoName(item.crypto)) + '</span>'
                               : getCryptoLabel(item.crypto);
       el.title = expanded ? '点击切换简写' : '点击切换完整名称';
     }
@@ -1359,8 +1376,8 @@
 
       container.innerHTML = sorted.map((item) => {
         const realIdx = capturedData.indexOf(item);
-        const isActive = realIdx === selectedIndex;
-        const isChecked = selectedItems.has(realIdx);
+        const isActive = item.id === selectedId;
+        const isChecked = selectedItems.has(item.id);
         const cryptoLabel = item.crypto
           ? `<span class="crypto-toggle" onclick="event.stopPropagation();toggleCryptoDisplay(${realIdx}, this)" title="点击切换完整名称">${getCryptoLabel(item.crypto)}</span>`
           : '';
@@ -1376,18 +1393,18 @@
           : (item.hostname ? item.hostname + (item.path ? item.path.replace(/^https?:\/\/[^/]+/, '') : '') : (item.path || 'Unknown'));
 
         return `
-          <div class="list-card ${isActive ? 'active' : ''}"
+          <div class="list-card ${isActive ? 'active' : ''}" role="button" tabindex="0" aria-selected="${isActive}"
                data-index="${realIdx}"
-               onclick="selectCapture(${realIdx})">
+               onclick="selectCapture(${realIdx})" onkeydown="if(event.target===event.currentTarget&&(event.key==='Enter'||event.key===' ')){event.preventDefault();selectCapture(${realIdx})}">
             <input type="checkbox" class="checkbox" ${isChecked ? 'checked' : ''}
-                   onclick="event.stopPropagation();toggleItemSelection(${realIdx})"
+                   onclick="event.stopPropagation();toggleItemSelection('${item.id}')"
                    aria-label="选择记录">
             ${methodBadge}
             <span class="col col-path" title="${escapeHtml(displayPath)}">${replayMark}${escapeHtml(displayPath)}</span>
             ${statusBadge}
             ${cryptoLabel}
-            <span class="badge ${durCls}" title="耗时">${durText}</span>
-            <span class="col col-time">${time}</span>
+            <span class="badge ${durCls}" title="耗时">${escapeHtml(String(durText))}</span>
+            <span class="col col-time">${escapeHtml(String(time))}</span>
             <button class="lc-del" onclick="event.stopPropagation();deleteItem(${realIdx})" title="删除">×</button>
           </div>`;
       }).join('');
@@ -1415,8 +1432,8 @@
     }
 
     function selectCapture(index, instant) {
-      selectedIndex = index;
       const item = capturedData[index];
+      selectedId = item ? item.id : null;
       activeTab = 'params';
       showRawPath = false;
 
@@ -1439,7 +1456,7 @@
     function renderDetail(item, index) {
       const panel = document.getElementById('detail-panel');
       const cryptoLabel = getCryptoLabel(item.crypto);
-      const cryptoName = item.crypto ? getCryptoName(item.crypto) : '';
+      const cryptoName = item.crypto ? escapeHtml(getCryptoName(item.crypto)) : '';
       const methodBadge = getMethodBadge(item.method);
       const statusBadge = getStatusBadge(item.statusCode);
       const fullDate = formatFullDate(item.timestamp);
@@ -1473,9 +1490,9 @@
               ${statusBadge}
               ${cryptoLabel}
               ${neteaseBadge}
-              <span class="badge ${durCls}">${durText}</span>
+               <span class="badge ${durCls}">${escapeHtml(String(durText))}</span>
               <span class="dim">${cryptoName}</span>
-              <span class="dim">${fullDate}</span>
+               <span class="dim">${escapeHtml(String(fullDate))}</span>
               ${detailHost ? `<span class="dim">${detailHost}</span>` : ''}
             </div>
           </header>
@@ -1487,7 +1504,7 @@
             <button class="btn btn-outline btn-sm" onclick="copyResponse(${index})">复制响应</button>
             <button class="btn btn-outline btn-sm" onclick="copyHeaders(${index}, 'req')">请求头</button>
             <button class="btn btn-outline btn-sm" onclick="copyHeaders(${index}, 'res')">响应头</button>
-            ${item.isNetease ? `<button class="btn btn-default btn-sm" onclick="replayCapture(${index})">重放</button>` : ''}
+            ${item.isNetease && ['eapi', 'linuxapi', 'api'].includes(item.crypto) ? `<button class="btn btn-default btn-sm" onclick="replayCapture(${index})">重放</button>` : ''}
           </div>
 
           <nav class="tabs" aria-label="详情标签">
@@ -1530,7 +1547,7 @@
         case 'params':
           return `
             <div class="block-label"><strong>请求参数</strong> ${countKeys(filteredParam)} 个字段</div>
-            <pre class="code-block">${formatJson(filteredParam)}</pre>`;
+            <pre class="code-block">${escapeJson(filteredParam)}</pre>`;
         case 'reqHeaders':
           return `
             <div class="block-label"><strong>请求 Headers</strong> ${countKeys(item.requestHeaders)} 个</div>
@@ -1557,7 +1574,7 @@
                   原始格式
                 </label>
               </div>
-              <pre class="code-block" id="response-content">${formatJson(item.response)}</pre>`;
+              <pre class="code-block" id="response-content">${escapeJson(item.response)}</pre>`;
           }
           if (item.responseBody) {
             return `
@@ -1571,7 +1588,7 @@
               <strong>完整原始数据</strong>
               <button class="btn btn-outline btn-xs" onclick="copyRaw(${capturedData.indexOf(item)})">复制</button>
             </div>
-            <pre class="code-block">${formatJson(item)}</pre>`;
+            <pre class="code-block">${escapeJson(item)}</pre>`;
         default:
           return '';
       }
@@ -1579,8 +1596,8 @@
 
     function switchTab(tab) {
       activeTab = tab;
-      const item = capturedData[selectedIndex];
-      if (item) renderDetail(item, selectedIndex);
+      const item = getItemById(selectedId);
+      if (item) renderDetail(item, getIndexById(selectedId));
     }
     function togglePathDisplay(index) {
       showRawPath = !showRawPath;
@@ -1597,9 +1614,7 @@
 
     // ======================== 复制 ========================
     function copyToClipboard(text, label) {
-      navigator.clipboard.writeText(text).then(() => {
-        showToast(label || '已复制', 'success');
-      }).catch(() => {
+      const fallback = () => {
         const ta = document.createElement('textarea');
         ta.value = text;
         ta.style.position = 'fixed';
@@ -1607,13 +1622,18 @@
         document.body.appendChild(ta);
         ta.select();
         try {
-          document.execCommand('copy');
+          if (!document.execCommand('copy')) throw new Error('copy rejected');
           showToast(label || '已复制', 'success');
         } catch (e) {
           showToast('复制失败，请手动复制', 'error');
+        } finally {
+          document.body.removeChild(ta);
         }
-        document.body.removeChild(ta);
-      });
+      };
+      if (!navigator.clipboard || typeof navigator.clipboard.writeText !== 'function') return fallback();
+      navigator.clipboard.writeText(text).then(() => {
+        showToast(label || '已复制', 'success');
+      }).catch(fallback);
     }
     function copyPath(index) {
       const item = capturedData[index];
@@ -1629,8 +1649,8 @@
     }
     function copyResponse(index) {
       const item = capturedData[index];
-      if (!item || !item.response) return showToast('无响应数据可复制', 'error');
-      copyToClipboard(formatJson(item.response), '响应已复制');
+      if (!item || (item.response == null && item.responseBody == null)) return showToast('无响应数据可复制', 'error');
+      copyToClipboard(item.response != null ? formatJson(item.response) : String(item.responseBody), '响应已复制');
     }
     function copyRaw(index) {
       const item = capturedData[index];
@@ -1652,7 +1672,8 @@
       if (!item) return showToast('数据不完整', 'error');
       const method = (item.method || 'POST').toUpperCase();
       let url = item.isNetease ? ('https://music.163.com' + (getDisplayPath(item) || '')) : (item.path || '');
-      let curl = "curl -X " + method + " '" + url + "'";
+      if (!/^https?:\/\//i.test(url) && item.hostname) url = 'https://' + item.hostname + (url.startsWith('/') ? url : '/' + url);
+      let curl = "curl -X " + method + " '" + url.replace(/'/g, "'\\''") + "'";
       if (item.requestHeaders) {
         Object.entries(item.requestHeaders).forEach(([k, v]) => {
           if (['host', 'content-length', 'proxy-connection'].includes(k.toLowerCase())) return;
@@ -1675,29 +1696,25 @@
       if (!item) return;
       const path = item.path || 'Unknown';
       showConfirm('删除抓包记录', '确定要删除 "' + path + '" 的抓包记录吗？', () => {
-        capturedData.splice(index, 1);
-        if (selectedIndex === index) {
-          selectedIndex = -1;
-          renderEmptyDetail();
-        } else if (selectedIndex > index) {
-          selectedIndex--;
-        }
-        renderCaptureList();
-        showToast('已删除该记录', 'info');
+        deleteCaptures([item.id]);
       });
+    }
+    function deleteCaptures(ids) {
+      fetch('/api/delete', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ ids })
+      }).then(checkResponse).then(r => r.json()).then(data => {
+        ids.forEach(id => selectedItems.delete(id));
+        if (ids.includes(selectedId)) { selectedId = null; renderEmptyDetail(); }
+        showToast('已永久删除 ' + data.deleted + ' 条记录', 'info');
+      }).catch(e => showToast('删除失败: ' + e.message, 'error'));
     }
     function confirmClear() {
       if (!capturedData || capturedData.length === 0) return showToast('暂无数据可清空', 'info');
       showConfirm('清空所有数据', '确定要清空全部 ' + capturedData.length + ' 条抓包记录吗？此操作不可撤销。', () => {
-        capturedData = [];
-        selectedIndex = -1;
-        selectedItems.clear();
-        renderCaptureList();
-        renderEmptyDetail();
         fetch('/api/clear', { method: 'POST' })
-          .then(r => r.json())
-          .then(d => { if (d.success) showToast('已清空所有数据', 'info'); })
-          .catch(() => showToast('清空请求失败', 'error'));
+          .then(checkResponse).then(r => r.json())
+          .then(d => { if (d.success) { selectedId = null; selectedItems.clear(); renderEmptyDetail(); showToast('已清空所有数据', 'info'); } })
+          .catch(e => showToast('清空请求失败: ' + e.message, 'error'));
       });
     }
 
@@ -1720,9 +1737,14 @@
       document.getElementById('replay-crypto').textContent = getCryptoName(item.crypto);
       document.getElementById('replay-params').value = formatJson(replayFormData);
       overlay.classList.add('show');
+      overlay.setAttribute('aria-hidden', 'false');
+      lastFocusedElement = document.activeElement;
+      document.getElementById('replay-params').focus();
     }
     function closeReplayModal() {
       document.getElementById('replay-modal').classList.remove('show');
+      document.getElementById('replay-modal').setAttribute('aria-hidden', 'true');
+      if (lastFocusedElement) lastFocusedElement.focus();
     }
     function executeReplay() {
       const item = capturedData[replayIndex];
@@ -1749,7 +1771,7 @@
           requestHeaders: item.requestHeaders,
         })
       })
-      .then(r => r.json())
+      .then(checkResponse).then(r => r.json())
       .then(result => {
         closeReplayModal();
         if (result.error) {
@@ -1861,7 +1883,7 @@
       const status = Object.entries(stats.statusGroups || {}).sort((a, b) => b[1] - a[1]);
       const block = (label, arr) => {
         if (!arr.length) return '';
-        return '<span class="sb-block">' + label + ' <b>' + arr.slice(0, 3).map(([k, v]) => k + '=' + v).join(' · ') + '</b></span>';
+        return '<span class="sb-block">' + escapeHtml(label) + ' <b>' + arr.slice(0, 3).map(([k, v]) => escapeHtml(k) + '=' + Number(v)).join(' · ') + '</b></span>';
       };
       el.innerHTML = block('M', methods) + block('E', cryptos) + block('S', status);
     }
@@ -1997,19 +2019,20 @@
           const data = JSON.parse(event.data);
           setConnUI(true);
           const prevLen = capturedData.length;
-          capturedData = data;
+           capturedData = data;
+           selectedItems = new Set([...selectedItems].filter(id => capturedData.some(item => item.id === id)));
           renderCaptureList();
 
           if (autoScroll && data.length > prevLen && data.length > 0) {
-            selectCapture(data.length - 1, true);
-          } else if (selectedIndex === -1 && data.length > 0) {
-            selectCapture(0);
-          } else if (selectedIndex >= data.length) {
-            selectedIndex = -1;
-            renderEmptyDetail();
-          } else if (selectedIndex >= 0) {
-            const item = capturedData[selectedIndex];
-            if (item) renderDetail(item, selectedIndex);
+             selectCapture(data.length - 1, true);
+           } else if (!selectedId && data.length > 0) {
+             selectCapture(0);
+           } else if (selectedId && !getItemById(selectedId)) {
+             selectedId = null;
+             renderEmptyDetail();
+           } else if (selectedId) {
+             const item = getItemById(selectedId);
+             if (item) renderDetail(item, getIndexById(selectedId));
           }
         } catch (e) {
           console.error('SSE parse error:', e);
@@ -2044,16 +2067,17 @@
         });
     }
 
-    function registerSW() {
+    function unregisterLegacyServiceWorkers() {
       if ('serviceWorker' in navigator) {
-        navigator.serviceWorker.register('/sw.js').catch(function(err) {
-          console.log('ServiceWorker registration failed:', err);
-        });
+        navigator.serviceWorker.getRegistrations()
+          .then(registrations => Promise.all(registrations.map(registration => registration.unregister())))
+          .catch(() => {});
       }
     }
 
     document.addEventListener('DOMContentLoaded', function() {
       fetchVersion();
+      unregisterLegacyServiceWorkers();
       fetchStats();
       fetchSettings();
       setupSSE();
@@ -2061,14 +2085,19 @@
       initColumnResize();
       renderEmptyDetail();
       renderCaptureList();
-      registerSW();
       setInterval(fetchStats, 5000);
 
       document.getElementById('drawer-open-btn').addEventListener('click', () => toggleDrawer(true));
       document.getElementById('drawer-close-btn').addEventListener('click', () => toggleDrawer(false));
 
       // 初始化排序按钮
-      setSort('time');
+      setSort('time', true);
+    });
+    document.addEventListener('keydown', function(event) {
+      if (event.key !== 'Escape') return;
+      if (document.getElementById('replay-modal').classList.contains('show')) closeReplayModal();
+      else if (document.getElementById('modal-overlay').classList.contains('show')) closeModal();
+      else if (document.getElementById('list-panel').classList.contains('open')) toggleDrawer(false);
     });
   </script>
 </body>
