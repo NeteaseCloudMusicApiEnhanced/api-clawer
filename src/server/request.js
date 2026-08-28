@@ -162,14 +162,48 @@ const read = (connect, raw) =>
 			.on('error', (error) => reject(error));
 	}).then((buffer) => {
 		if (buffer.length) {
-			switch (connect.headers['content-encoding']) {
-				case 'deflate':
-				case 'gzip':
+			const ce = (
+				connect.headers['content-encoding'] || ''
+			).toLowerCase();
+			logger.debug(
+				{
+					ce,
+					head: buffer.length >= 4
+						? buffer.subarray(0, 4).toString('hex')
+						: buffer.toString('hex'),
+					len: buffer.length,
+				},
+				'request.read CE'
+			);
+			// 多值 content-encoding (如 "gzip, deflate") 用 includes 匹配
+			let decompressed = false;
+			if (ce.includes('gzip') || ce.includes('deflate')) {
+				try {
 					buffer = zlib.unzipSync(buffer);
-					break;
-				case 'br':
+					decompressed = true;
+				} catch (e) {
+					logger.warn({ err: e.message }, 'request.read: gzip/deflate decompress failed');
+				}
+			} else if (ce.includes('br')) {
+				try {
 					buffer = zlib.brotliDecompressSync(buffer);
-					break;
+					decompressed = true;
+				} catch (e) {
+					logger.warn({ err: e.message }, 'request.read: br decompress failed');
+				}
+			}
+			// gzip 魔头兜底: content-encoding 头可能错误, 但实际数据是 gzip
+			if (
+				!decompressed &&
+				buffer.length > 2 &&
+				buffer[0] === 0x1f &&
+				buffer[1] === 0x8b
+			) {
+				try {
+					buffer = zlib.unzipSync(buffer);
+				} catch (e) {
+					logger.warn({ err: e.message }, 'request.read: magic-byte gzip decompress failed');
+				}
 			}
 		}
 		return raw ? buffer : buffer.toString();

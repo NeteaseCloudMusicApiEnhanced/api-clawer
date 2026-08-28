@@ -1,6 +1,7 @@
 'use strict';
 
 const crypto = require('crypto');
+const zlib = require('zlib');
 const parse = require('url').parse;
 const bodyify = require('querystring').stringify;
 
@@ -18,6 +19,18 @@ const xeapiOldKey = Buffer.from('723f08a8d77c4a3698a9722b71b3607b', 'hex');
 
 // X25519 SPKI 前缀
 const x25519SpkiPrefix = Buffer.from('302a300506032b656e032100', 'hex');
+
+// xeapi 签名密钥 (key/get 响应验签用)
+const xeapiSignKey =
+	'mUHCwVNWJbunMqAHf5MImuirT6plvs6VSFW62MGHstFQxhBGdEoIhLItH3djc4+FB/OKty3+lL2rGeoFBpVe5g==';
+
+// xeapi 签名 (参考 api-enhanced)
+const xeapiSign = (timestamp, nonce) => {
+	return crypto
+		.createHmac('sha256', xeapiSignKey)
+		.update(String(timestamp) + nonce)
+		.digest('base64');
+};
 
 const decrypt128Ecb = (buffer, key) => {
 	const decipher = crypto.createDecipheriv('aes-128-ecb', key, null);
@@ -113,6 +126,97 @@ const decryptXeapiS = (sField, privateKey) => {
 	return Buffer.from(dynamicKeyBase64, 'base64');
 };
 
+// 生成 MITM X25519 密钥对
+const generateMitmKeyPair = () => {
+	const { publicKey, privateKey } = crypto.generateKeyPairSync('x25519');
+	const raw = Buffer.from(
+		publicKey.export({ format: 'der', type: 'spki' })
+	).subarray(-32);
+	return {
+		publicKey: raw.toString('base64'),
+		privateKey,
+	};
+};
+
+// 用 MITM 私钥解密 S 字段，返回明文 (dynamicKey|os|sk)
+const parseXeapiS = (sField, privateKey) => {
+	const raw = Buffer.from(sField, 'base64');
+	const ephemeralRaw = raw.subarray(0, 32);
+	const iv = raw.subarray(32, 44);
+	const authTag = raw.subarray(raw.length - 16);
+	const ciphertext = raw.subarray(44, raw.length - 16);
+
+	const ephemeralKey = crypto.createPublicKey({
+		key: Buffer.concat([x25519SpkiPrefix, ephemeralRaw]),
+		format: 'der',
+		type: 'spki',
+	});
+	const sharedSecret = crypto.diffieHellman({ privateKey, publicKey: ephemeralKey });
+	const prk = crypto
+		.createHmac('sha256', Buffer.alloc(32))
+		.update(sharedSecret.length ? sharedSecret : Buffer.alloc(32))
+		.digest();
+	const aesKey = crypto
+		.createHmac('sha256', prk)
+		.update(Buffer.concat([ephemeralRaw, Buffer.from([1])]))
+		.digest()
+		.subarray(0, 16);
+
+	const decipher = crypto.createDecipheriv('aes-128-gcm', aesKey, iv);
+	decipher.setAuthTag(authTag);
+	const decrypted = Buffer.concat([decipher.update(ciphertext), decipher.final()]);
+	const [dynamicKeyB64, os, sk] = decrypted.toString().split('|');
+	return {
+		dynamicKey: Buffer.from(dynamicKeyB64, 'base64'),
+		os: os || 'android',
+		sk: sk || '',
+	};
+};
+
+// 用服务端真实公钥重加密 S 字段 (MITM 转发)
+// 客户端用 MITM 公钥加密 S → 代理用私钥解出 dynamicKey → 用服务端公钥重加密
+const reEncryptXeapiS = (sField, serverPublicKeyB64, privateKey) => {
+	const parsed = parseXeapiS(sField, privateKey);
+	const peerRaw = Buffer.from(serverPublicKeyB64, 'base64');
+	const peerKey = crypto.createPublicKey({
+		key: Buffer.concat([x25519SpkiPrefix, peerRaw]),
+		format: 'der',
+		type: 'spki',
+	});
+	// 生成新的临时密钥对，用私钥做 DH
+	const { publicKey, privateKey: ephemPrivateKey } = crypto.generateKeyPairSync('x25519');
+	const ephemeralRaw = Buffer.from(
+		publicKey.export({ format: 'der', type: 'spki' })
+	).subarray(-32);
+	const sharedSecret = crypto.diffieHellman({
+		privateKey: ephemPrivateKey,
+		publicKey: peerKey,
+	});
+	// 派生 AES 密钥 (与客户端侧 deriveX25519AesKey 相同)
+	const prk = crypto
+		.createHmac('sha256', Buffer.alloc(32))
+		.update(sharedSecret.length ? sharedSecret : Buffer.alloc(32))
+		.digest();
+	const aesKey = crypto
+		.createHmac('sha256', prk)
+		.update(Buffer.concat([ephemeralRaw, Buffer.from([1])]))
+		.digest()
+		.subarray(0, 16);
+
+	const iv = crypto.randomBytes(12);
+	const cipher = crypto.createCipheriv('aes-128-gcm', aesKey, iv);
+	const plaintext = Buffer.from(
+		`${parsed.dynamicKey.toString('base64')}|${parsed.os}|${parsed.sk}`
+	);
+	const encrypted = Buffer.concat([cipher.update(plaintext), cipher.final()]);
+	return Buffer.concat([
+		ephemeralRaw,
+		iv,
+		encrypted,
+		cipher.getAuthTag(),
+	]).toString('base64');
+};
+
 // 解密完整的 xeapi 请求 (B + S 字段)
 const decryptXeapiRequest = ({ B, S, privateKey }) => {
 	// 1. 解密 S 获取动态密钥
@@ -129,6 +233,46 @@ const decryptXeapiRequest = ({ B, S, privateKey }) => {
 	const plaintext = decrypt256Ecb(innerEncrypted, xeapiStaticKey);
 	
 	return plaintext.toString();
+};
+
+// xeapi/eapi 响应解密: 参考 api-enhanced 的 xeapiResDecrypt
+// 1. AES-128-ECB(eapiKey) 解密
+// 2. 检查结果是否以 gzip 魔头 (0x1f 0x8b) 开头, 是则解压
+// 3. 返回 JSON.parse 后的对象
+const eapiResDecrypt = (body) => {
+	const decrypted = decrypt128Ecb(body, eapiKey);
+	const plaintext =
+		decrypted.length > 2 &&
+		decrypted[0] === 0x1f &&
+		decrypted[1] === 0x8b
+			? zlib.gunzipSync(decrypted)
+			: decrypted;
+	return JSON.parse(plaintext.toString());
+};
+
+// 解析 xeapi 请求明文 (buildXeapiPlaintext 的输出)
+// 格式: {"contentType":"...","method":"GET","queryString":"...&e_r=true","body":"base64(...)"}
+const parseXeapiPlaintext = (decryptedText) => {
+	let parsed;
+	try {
+		parsed = JSON.parse(decryptedText);
+	} catch (e) {
+		return null; // 不是 JSON, 可能是旧格式
+	}
+	if (!parsed || typeof parsed !== 'object') return null;
+	if (
+		!('queryString' in parsed) &&
+		!('body' in parsed) &&
+		!('method' in parsed)
+	) {
+		return null; // 不是 xeapi 新格式
+	}
+	return {
+		contentType: parsed.contentType || null,
+		method: (parsed.method || 'POST').toUpperCase(),
+		queryString: parsed.queryString || '',
+		body: parsed.body || null,
+	};
 };
 
 module.exports = {
@@ -164,6 +308,16 @@ module.exports = {
 		decryptResponse: (buffer) => decrypt256Ecb(buffer, xeapiStaticKey),
 		// 加密公钥响应 (MITM 替换)
 		encryptResponse: (buffer) => encrypt256Ecb(buffer, xeapiStaticKey),
+		// xeapi/eapi 响应解密 (AES-128-ECB + gzip 检查)
+		eapiResDecrypt,
+		// 解析 xeapi 请求明文 (buildXeapiPlaintext 输出)
+		parseXeapiPlaintext,
+		// MITM 密钥交换
+		generateMitmKeyPair,
+		parseXeapiS,
+		reEncryptXeapiS,
+		// 签名
+		sign: xeapiSign,
 		encryptRequest: (url, object) => {
 			url = parse(url);
 			const text = JSON.stringify(object);
@@ -214,6 +368,8 @@ module.exports = {
 			};
 		},
 	},
+	eapiResDecrypt,
+	parseXeapiPlaintext,
 	base64: {
 		encode: (text, charset) =>
 			Buffer.from(text, charset)

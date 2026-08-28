@@ -9,8 +9,18 @@ require('dotenv').config();
 
 // X25519 key pair for xeapi MITM attack (replaces server's public key)
 let mitmKeyPair = null;
+// 真实服务端公钥 (从 key/get 响应中保存, 用于转发时重加密 S 字段)
+let serverPublicKey = null;
 
 const logger = logScope('hook');
+
+// 初始化 MITM 密钥对 (必须在 logger 之后)
+try {
+	mitmKeyPair = crypto.xeapi.generateMitmKeyPair();
+	logger.info({ publicKey: mitmKeyPair.publicKey }, 'MITM X25519 keypair generated');
+} catch (e) {
+	logger.error('Failed to generate MITM keypair:', e.message);
+}
 
 const hook = {
 	request: {
@@ -158,10 +168,10 @@ hook.request.before = (ctx) => {
 		[url.hostname, req.headers.host].some((host) =>
 			hook.target.host.has(host)
 		) &&
-		req.method === 'POST' &&
 		(url.path.startsWith('/eapi/') || // eapi
-			url.path.startsWith('/xeapi/') || // xeapi
-			url.path.startsWith('/api/linux/forward')) // linuxapi
+			url.path.includes('/xeapi/') || // xeapi (可能带 /store/ 前缀)
+			url.path.startsWith('/api/linux/forward')) && // linuxapi
+		(req.method === 'POST' || url.path.includes('/xeapi/')) // POST 全支持; xeapi 也可能 GET
 	) {
 		return request
 			.read(req)
@@ -178,14 +188,14 @@ hook.request.before = (ctx) => {
 					return; // look living/cloudupload eapi can not be decrypted
 				if (req.headers['Accept-Encoding'])
 					req.headers['Accept-Encoding'] = 'gzip, deflate'; // https://blog.csdn.net/u013022222/article/details/51707352
-				if (body) {
-					const netease = {};
-					netease.pad = (body.match(/%0+$/) || [''])[0];
+if (body || (req.method === 'GET' && url.path.includes('/xeapi/'))) {
+				const netease = {};
+				netease.pad = ((body || '').match(/%0+$/) || [''])[0];
 					if (url.path === '/api/linux/forward') {
 						netease.crypto = 'linuxapi';
-					} else if (url.path.startsWith('/eapi/')) {
+					} else if (url.path.includes('/eapi/')) {
 						netease.crypto = 'eapi';
-					} else if (url.path.startsWith('/xeapi/')) {
+					} else if (url.path.includes('/xeapi/')) {
 						netease.crypto = 'xeapi';
 					} else if (url.path.startsWith('/api/')) {
 						netease.crypto = 'api';
@@ -235,58 +245,104 @@ hook.request.before = (ctx) => {
 							netease.e_r = false;
 						}
 						break;
-						case 'xeapi':
-							// 解析 B=...&S=...&R=... 格式 (新 xeapi 协议)
+case 'xeapi':
+						// xeapi 请求: B/S/R 可能在 body (POST) 或 URL query (GET)
+						let bField, sField;
+						let queryParams = null;
+						
+						if (req.method === 'GET' && url.query) {
+							// GET 请求: B/S/R 在 URL query 里
+							const sp = new URLSearchParams(url.query);
+							bField = sp.get('B');
+							sField = sp.get('S');
+							queryParams = sp;
+						} else {
+							// POST 请求: B/S/R 在 body 里
 							const parsedBody = querystring.parse(body);
-							const bField = parsedBody.B;
-							const sField = parsedBody.S;
-							
-							if (!bField) {
-								throw new Error('xeapi body missing B field');
+							bField = parsedBody.B;
+							sField = parsedBody.S;
+						}
+						
+						if (!bField) {
+							throw new Error('xeapi request missing B field');
+						}
+						
+						// 尝试解析 xeapi 请求
+						let decryptedText = null;
+						
+						// 方法1: 如果有 MITM 私钥，尝试完整解密 (X25519 + 双层 AES)
+						if (mitmKeyPair && sField) {
+							try {
+								decryptedText = crypto.xeapi.decryptRequest({
+									B: bField,
+									S: sField,
+									privateKey: mitmKeyPair.privateKey,
+								});
+							} catch(e) {
+								logger.warn('xeapi MITM decrypt failed (expected if no MITM):', e.message);
 							}
-							
-							// 尝试解析 xeapi 请求
-							let decryptedText = null;
-							
-							// 方法1: 如果有 MITM 私钥，尝试完整解密 (X25519 + 双层 AES)
-							if (mitmKeyPair && sField) {
-								try {
-									decryptedText = crypto.xeapi.decryptRequest({
-										B: bField,
-										S: sField,
-										privateKey: mitmKeyPair.privateKey,
-									});
-								} catch(e) {
-									logger.warn('xeapi MITM decrypt failed (expected if no MITM):', e.message);
+						}
+						
+						// 方法2: 尝试直接 AES-128-ECB 解密 B 字段 (旧格式兼容)
+						if (!decryptedText) {
+							try {
+								const bodyBuf = Buffer.from(bField, 'base64');
+								decryptedText = crypto.xeapi
+									.decrypt(bodyBuf)
+									.toString();
+							} catch(e) {
+								// 忽略，降级
+							}
+						}
+						
+						// 方法3: URL decode + base64
+						if (!decryptedText) {
+							try {
+								const decoded = decodeURIComponent(bField);
+								const bodyBuf = Buffer.from(decoded, 'base64');
+								decryptedText = crypto.xeapi
+									.decrypt(bodyBuf)
+									.toString();
+							} catch(e) {
+								// 忽略，降级
+							}
+						}
+						
+						if (decryptedText) {
+							// 新格式: 纯 JSON {queryString, body, method} (buildXeapiPlaintext)
+							const xeapiPlain = crypto.xeapi.parseXeapiPlaintext(decryptedText);
+							if (xeapiPlain) {
+								netease.path = (url.pathname || url.path)
+									.replace(/^\/xeapi\//, '/api/')
+									.replace(/\/store\/xeapi\//, '/api/');
+								const params = {};
+								// body 字段 (base64 编码的 urlencoded 参数)
+								if (xeapiPlain.body) {
+									try {
+										const bodyStr = Buffer.from(xeapiPlain.body, 'base64').toString();
+										new URLSearchParams(bodyStr).forEach((v, k) => {
+											try { params[k] = JSON.parse(v); } catch { params[k] = v; }
+										});
+									} catch(e) {
+										logger.warn('xeapi parse body failed:', e.message);
+									}
 								}
-							}
-							
-							// 方法2: 尝试直接 AES-128-ECB 解密 B 字段 (旧格式兼容)
-							if (!decryptedText) {
-								try {
-									const bodyBuf = Buffer.from(bField, 'base64');
-									decryptedText = crypto.xeapi
-										.decrypt(bodyBuf)
-										.toString();
-								} catch(e) {
-									// 忽略，降级
+								// queryString 字段 (URL query 参数, 含 e_r=true)
+								if (xeapiPlain.queryString) {
+									try {
+										new URLSearchParams(xeapiPlain.queryString).forEach((v, k) => {
+											if (k === 'e_r') { params.e_r = v; return; }
+											try { params[k] = JSON.parse(v); } catch { params[k] = v; }
+										});
+									} catch(e) {
+										logger.warn('xeapi parse queryString failed:', e.message);
+									}
 								}
-							}
-							
-							// 方法3: URL decode + base64
-							if (!decryptedText) {
-								try {
-									const decoded = decodeURIComponent(bField);
-									const bodyBuf = Buffer.from(decoded, 'base64');
-									decryptedText = crypto.xeapi
-										.decrypt(bodyBuf)
-										.toString();
-								} catch(e) {
-									// 忽略，降级
-								}
-							}
-							
-							if (decryptedText) {
+								netease.param = params;
+								netease.e_r = xeapiPlain.queryString.includes('e_r=true') || params.e_r === 'true' || params.e_r === true;
+								netease.method = xeapiPlain.method;
+							} else {
+								// 旧格式: path-36cd479b6b5-json
 								data = decryptedText.split('-36cd479b6b5-');
 								netease.path = data[0];
 								netease.param = JSON.parse(data[1]);
@@ -300,25 +356,26 @@ hook.request.before = (ctx) => {
 								} else {
 									netease.e_r = false;
 								}
-							} else {
-								// 无法解密 xeapi，但 URL 上的 query 参数就是请求参数喵！
-								netease.path = url.pathname;
-								const queryParams = {};
-								if (url.query) {
-									const searchParams = new URLSearchParams(url.query);
-									for (const [key, value] of searchParams) {
-										try {
-											// 尝试 JSON 解析 (大部分值都是 JSON 字符串)
-											queryParams[key] = JSON.parse(decodeURIComponent(value));
-										} catch {
-											// 不是 JSON 就用原始值
-											queryParams[key] = decodeURIComponent(value);
-										}
+							}
+						} else {
+							// 无法解密 xeapi，但 URL 上的 query 参数就是请求参数喵！
+							netease.path = url.pathname;
+							const queryParamsObj = {};
+							if (url.query) {
+								const searchParams = new URLSearchParams(url.query);
+								for (const [key, value] of searchParams) {
+									try {
+										// 尝试 JSON 解析 (大部分值都是 JSON 字符串)
+										queryParamsObj[key] = JSON.parse(decodeURIComponent(value));
+									} catch {
+										// 不是 JSON 就用原始值
+										queryParamsObj[key] = decodeURIComponent(value);
 									}
 								}
-								netease.param = queryParams;
 							}
-						break;
+							netease.param = queryParamsObj;
+						}
+					break;
 						case 'api':
 							data = {};
 							decodeURIComponent(body)
@@ -342,6 +399,43 @@ hook.request.before = (ctx) => {
 						netease.rawPath = url.pathname || url.path;
 						if (netease.path.startsWith('/xeapi/')) {
 							netease.path = netease.path.replace(/^\/xeapi\//, '/api/');
+						} else if (netease.path.startsWith('/store/xeapi/')) {
+							netease.path = netease.path.replace(/^\/store\/xeapi\//, '/api/');
+						}
+						// ===== MITM 中继: 用真实服务端公钥重加密 S 字段 =====
+						// 客户端用 MITM 公钥加密 S → 真实服务器解不了
+						// 代理用 MITM 私钥解出 dynamicKey → 用真实服务端公钥重新加密 S → 转发
+						if (mitmKeyPair && serverPublicKey && sField) {
+							try {
+								const newS = crypto.xeapi.reEncryptXeapiS(
+									sField,
+									serverPublicKey,
+									mitmKeyPair.privateKey
+								);
+								if (req.method === 'GET') {
+									// GET: 替换 URL query 中的 S 参数
+									const sp = new URLSearchParams(url.query);
+									sp.set('S', newS);
+									const newQuery = sp.toString();
+									req.url = `${url.pathname}?${newQuery}`;
+									netease.relayed = true;
+								} else {
+									// POST: 替换 body 中的 S 参数
+									const newBody = body.replace(
+										/([?&]S=)[^&]*(&|$)/,
+										`$1${encodeURIComponent(newS)}$2`
+									);
+									req.body = newBody;
+									req.headers['content-length'] = Buffer.byteLength(newBody);
+									netease.relayed = true;
+								}
+								logger.info(
+									{ path: netease.path },
+									'xeapi MITM relay: S field re-encrypted with server public key'
+								);
+							} catch(e) {
+								logger.warn('xeapi MITM relay failed:', e.message);
+							}
 						}
 					}
 					ctx.netease = netease;
@@ -415,11 +509,61 @@ hook.request.after = (ctx) => {
 						'$1"$2L"$3'
 					); // for js precision
 
+				// ===== xeapi key/get 拦截: 替换公钥为 MITM 公钥 =====
+				// 客户端通过 POST /api/gorilla/anti/crawler/security/key/get 获取 xeapi 公钥
+				// 代理把响应里的公钥换成自己的 X25519 公钥, 这样客户端会用 MITM 公钥加密 S 字段
+				if (
+					netease.path &&
+					netease.path.includes('gorilla/anti/crawler/security/key/get')
+				) {
+					try {
+						const jsonBody = JSON.parse(buffer.toString());
+						const encData =
+							jsonBody.data && jsonBody.data.encryptedData;
+						if (encData && mitmKeyPair) {
+							// 用 xeapiStaticKey 解密 encryptedData (AES-256-ECB)
+							const decrypted = crypto.xeapi.decryptResponse(
+								Buffer.from(encData, 'base64')
+							);
+							const keyInfo = JSON.parse(decrypted.toString());
+							// 保存真实服务端公钥 (用于转发时重加密 S 字段)
+							if (keyInfo.publicKey) {
+								serverPublicKey = keyInfo.publicKey;
+							}
+							// 替换为 MITM 公钥
+							const oldKey = keyInfo.publicKey;
+							keyInfo.publicKey = mitmKeyPair.publicKey;
+							// 重新加密 encryptedData
+							const newEnc = crypto.xeapi.encryptResponse(
+								Buffer.from(JSON.stringify(keyInfo))
+							);
+							jsonBody.data.encryptedData = newEnc.toString('base64');
+							// 更新转发给客户端的响应体
+							proxyRes.body = Buffer.from(JSON.stringify(jsonBody));
+							delete proxyRes.headers['content-length'];
+							netease.jsonBody = jsonBody;
+							logger.info(
+								{
+									oldKey: (oldKey || '').slice(0, 16) + '...',
+									newKey: mitmKeyPair.publicKey.slice(0, 16) + '...',
+								},
+								'xeapi key/get response patched (MITM public key injected)'
+							);
+						}
+					} catch (e) {
+						logger.error('key/get patch failed:', e.message);
+					}
+				}
+
 				if (netease.e_r) {
 					// 已知加密: 用 eapiKey 解密 (xeapi/eapi 响应都用 eapiKey)
-					netease.jsonBody = JSON.parse(
-						patch(crypto.eapi.decrypt(buffer).toString())
-					);
+					// eapiResDecrypt 处理 AES-128-ECB + gzip 魔头检查
+					try {
+						netease.jsonBody = crypto.eapiResDecrypt(buffer);
+					} catch(e) {
+						// 解密失败则尝试直接 JSON.parse (可能是明文)
+						netease.jsonBody = JSON.parse(patch(buffer.toString()));
+					}
 				} else {
 					// 未知是否加密: 先尝试直接解析 JSON
 					try {
@@ -427,8 +571,7 @@ hook.request.after = (ctx) => {
 					} catch(e) {
 						// 不是 JSON? 可能是加密的，尝试 eapi 解密 (xeapi 不解密请求参数时 e_r 未设)
 						try {
-							const decrypted = crypto.eapi.decrypt(buffer).toString();
-							netease.jsonBody = JSON.parse(patch(decrypted));
+							netease.jsonBody = crypto.eapiResDecrypt(buffer);
 							netease.e_r = true; // 标记为已加密
 						} catch(e2) {
 							// 真的不是 JSON 也不是加密，重新抛原始错误
