@@ -1465,6 +1465,7 @@
       const neteaseBadge = isNeteaseBadge(item);
 
       const filteredParam = filterParam(item.param);
+      const filteredQuery = filterParam(item.query);
       const reqHeaders = item.requestHeaders || {};
       const resHeaders = item.responseHeaders || {};
       const reqHCount = countKeys(reqHeaders);
@@ -1500,7 +1501,7 @@
           <div class="detail-actions">
             <button class="btn btn-outline btn-sm" onclick="copyPath(${index})">复制路径</button>
             <button class="btn btn-outline btn-sm" onclick="copyCurl(${index})">复制 cURL</button>
-            ${item.param ? `<button class="btn btn-outline btn-sm" onclick="copyParam(${index})">复制参数</button>` : ''}
+            ${(item.param || item.query) ? `<button class="btn btn-outline btn-sm" onclick="copyParam(${index})">复制参数</button>` : ''}
             <button class="btn btn-outline btn-sm" onclick="copyResponse(${index})">复制响应</button>
             <button class="btn btn-outline btn-sm" onclick="copyHeaders(${index}, 'req')">请求头</button>
             <button class="btn btn-outline btn-sm" onclick="copyHeaders(${index}, 'res')">响应头</button>
@@ -1508,8 +1509,8 @@
           </div>
 
           <nav class="tabs" aria-label="详情标签">
-            ${item.param ? `<button class="tab ${activeTab === 'params' ? 'active' : ''}" onclick="switchTab('params')">
-              请求参数 <span class="tab-count">${countKeys(filteredParam)}</span>
+            ${(item.param || item.query) ? `<button class="tab ${activeTab === 'params' ? 'active' : ''}" onclick="switchTab('params')">
+              请求参数 <span class="tab-count">${countKeys(filteredParam) + countKeys(filteredQuery)}</span>
             </button>` : ''}
             <button class="tab ${activeTab === 'reqHeaders' ? 'active' : ''}" onclick="switchTab('reqHeaders')">
               请求头 <span class="tab-count">${reqHCount}</span>
@@ -1526,7 +1527,7 @@
           </nav>
 
           <div class="tab-content" id="detail-tab-content">
-            ${renderTabContent(item, filteredParam)}
+            ${renderTabContent(item, filteredParam, filteredQuery)}
           </div>
         </article>`;
     }
@@ -1542,12 +1543,27 @@
       return '<table class="headers-table"><tbody>' + rows + '</tbody></table>';
     }
 
-    function renderTabContent(item, filteredParam) {
+    function renderTabContent(item, filteredParam, filteredQuery) {
       switch (activeTab) {
-        case 'params':
-          return `
-            <div class="block-label"><strong>请求参数</strong> ${countKeys(filteredParam)} 个字段</div>
-            <pre class="code-block">${escapeJson(filteredParam)}</pre>`;
+        case 'params': {
+          // body 参数与 query 参数分开显示, 不混成一个对象
+          const hasQuery = countKeys(filteredQuery) > 0;
+          const blocks = [];
+          if (countKeys(filteredParam) > 0) {
+            blocks.push(`
+              <div class="block-label"><strong>${hasQuery ? 'Body 参数' : '请求参数'}</strong> ${countKeys(filteredParam)} 个字段</div>
+              <pre class="code-block">${escapeJson(filteredParam)}</pre>`);
+          }
+          if (hasQuery) {
+            blocks.push(`
+              <div class="block-label"><strong>Query 参数</strong> ${countKeys(filteredQuery)} 个字段</div>
+              <pre class="code-block">${escapeJson(filteredQuery)}</pre>`);
+          }
+          if (!blocks.length) {
+            return '<div class="empty" style="padding:24px;"><div class="empty-hint">暂无数据</div></div>';
+          }
+          return blocks.join('');
+        }
         case 'reqHeaders':
           return `
             <div class="block-label"><strong>请求 Headers</strong> ${countKeys(item.requestHeaders)} 个</div>
@@ -1645,7 +1661,13 @@
     function copyParam(index) {
       const item = capturedData[index];
       if (!item) return;
-      copyToClipboard(formatJson(filterParam(item.param)), '参数已复制');
+      const param = filterParam(item.param);
+      const query = filterParam(item.query);
+      if (countKeys(query) > 0) {
+        copyToClipboard(formatJson({ body: param || {}, query }), '参数已复制');
+        return;
+      }
+      copyToClipboard(formatJson(param), '参数已复制');
     }
     function copyResponse(index) {
       const item = capturedData[index];
@@ -1673,6 +1695,11 @@
       const method = (item.method || 'POST').toUpperCase();
       let url = item.isNetease ? ('https://music.163.com' + (getDisplayPath(item) || '')) : (item.path || '');
       if (!/^https?:\/\//i.test(url) && item.hostname) url = 'https://' + item.hostname + (url.startsWith('/') ? url : '/' + url);
+      // 有 query 参数时补进 URL, 保证复制出来的 cURL 和真实请求一致
+      const query = filterParam(item.query);
+      if (countKeys(query) > 0) {
+        url += (url.includes('?') ? '&' : '?') + new URLSearchParams(query).toString();
+      }
       let curl = "curl -X " + method + " '" + url.replace(/'/g, "'\\''") + "'";
       if (item.requestHeaders) {
         Object.entries(item.requestHeaders).forEach(([k, v]) => {
@@ -1816,8 +1843,13 @@
           lines.push('');
         }
         if (item.param && Object.keys(item.param).length > 0) {
-          lines.push('## 请求参数'); lines.push('');
-          lines.push('```json'); lines.push(formatJson(item.param)); lines.push('```'); lines.push('');
+          lines.push('## 请求参数' + (item.query && Object.keys(item.query).length > 0 ? ' (Body)' : ''));
+          lines.push('');
+          lines.push('```json'); lines.push(formatJson(filterParam(item.param))); lines.push('```'); lines.push('');
+        }
+        if (item.query && Object.keys(filterParam(item.query)).length > 0) {
+          lines.push('## Query 参数'); lines.push('');
+          lines.push('```json'); lines.push(formatJson(filterParam(item.query))); lines.push('```'); lines.push('');
         }
         if (item.responseHeaders && Object.keys(item.responseHeaders).length > 0) {
           lines.push('## 响应头'); lines.push('');

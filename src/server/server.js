@@ -149,7 +149,10 @@ const proxy = {
 				proxy.abort(proxyRes.socket, 'proxyRes')
 			);
 			res.writeHead(proxyRes.statusCode, proxyRes.headers);
-			proxyRes.readable ? proxyRes.pipe(res) : res.end(proxyRes.body);
+			// body 可能是被 hook 换成的新 Buffer (解密/改包), 也可能还是可读流
+			if (Buffer.isBuffer(proxyRes.body)) res.end(proxyRes.body);
+			else if (proxyRes.readable) proxyRes.pipe(res);
+			else res.end();
 		},
 		close: (ctx) => {
 			proxy.abort(ctx.res.socket, 'mitm');
@@ -190,15 +193,39 @@ const proxy = {
 		dock: (ctx) =>
 			new Promise((resolve) => {
 				const { req, head, socket } = ctx;
-				socket
-					.once('data', (data) =>
-						resolve((ctx.head = Buffer.concat([head, data])))
+				let buffer = head;
+				let settled = false;
+				const finish = () => {
+					if (settled) return;
+					settled = true;
+					socket.removeListener('data', onData);
+					socket.pause(); // 交给后面的 pipe() 恢复, 避免中间丢包
+					resolve((ctx.head = buffer));
+				};
+				// TLS 1.3 + 后量子套件 (X25519MLKEM768 等) 的 ClientHello 可能超过一个 TCP 段,
+				// 只取首个 data 事件会解析不出 SNI, 所以攒到能解析出 SNI 为止;
+				// 不是 TLS 或者攒到 8KB 还不成, 就直接放行 (拿不到 SNI 就按原来的透明透传走)
+				// TLS 记录收完整了 (不管有没有 SNI) 就可以放行, 免得不带 SNI 的客户端干等
+				const recordComplete = (buf) =>
+					buf.length >= 5 &&
+					buf[0] === 0x16 &&
+					buf.length >= 5 + buf.readUInt16BE(3);
+				const onData = (data) => {
+					buffer = Buffer.concat([buffer, data]);
+					if (
+						sni(buffer) ||
+						recordComplete(buffer) ||
+						buffer.length >= 8192 ||
+						buffer[0] !== 0x16
 					)
-					.write(
-						`HTTP/${req.httpVersion} 200 Connection established\r\n\r\n`
-					);
+						finish();
+				};
+				socket.on('data', onData);
+				socket.write(
+					`HTTP/${req.httpVersion} 200 Connection established\r\n\r\n`
+				);
 			})
-				.then((data) => (ctx.socket.sni = sni(data)))
+				.then(() => (ctx.socket.sni = sni(ctx.head)))
 				.catch((e) => e && logger.error(e)),
 		pipe: (ctx) => {
 			if (ctx.decision === 'blank')

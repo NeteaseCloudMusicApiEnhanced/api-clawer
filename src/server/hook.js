@@ -1,14 +1,12 @@
+const net = require('net');
 const parse = require('url').parse;
 const crypto = require('./crypto');
 const request = require('./request');
-const querystring = require('querystring');
+const xeapi = require('./xeapi');
 const { isHost, cookieToMap, mapToCookie } = require('./utilities');
 const { logScope } = require('./logger');
 const axios = require('axios');
 require('dotenv').config();
-
-// X25519 key pair for xeapi MITM attack (replaces server's public key)
-let mitmKeyPair = null;
 
 const logger = logScope('hook');
 
@@ -120,6 +118,54 @@ function isFullCapture() {
 	return global.fullCapture === true;
 }
 
+/**
+ * 用缓存下来的响应体替换原始流。
+ * 因为体已经被 request.read() 解压过了, 必须同时清掉与原始字节数/编码相关的头,
+ * 否则客户端会按旧的 content-length / content-encoding 解析而报错。
+ */
+function setBufferedBody(proxyRes, buffer) {
+	proxyRes.body = buffer;
+	delete proxyRes.headers['content-encoding'];
+	delete proxyRes.headers['content-length'];
+	delete proxyRes.headers['transfer-encoding'];
+}
+
+/**
+ * 响应体只能被读一次: 握手换包、网易云解密、通用抓包都要用, 这里统一缓存。
+ * 注意读完必须把 body 写回去 (proxy.mitm.response 依赖它), 否则响应体会丢。
+ */
+function readBody(proxyRes) {
+	if (!proxyRes._bodyPromise) {
+		proxyRes._bodyPromise = request
+			.read(proxyRes, true)
+			.then((buffer) => {
+				setBufferedBody(proxyRes, buffer);
+				return buffer;
+			})
+			.catch((error) => {
+				proxyRes._bodyError = error;
+				return null;
+			});
+	}
+	return proxyRes._bodyPromise;
+}
+
+/**
+ * 拦截 xeapi 公钥响应: 把服务器公钥换成我们自己的, 并记下真实公钥用于转发
+ */
+function interceptKeyState(ctx) {
+	const { req, proxyRes } = ctx;
+	return readBody(proxyRes).then((buffer) => {
+		const replaced = xeapi.replaceKeyResponse(
+			parse(req.url || '').path,
+			buffer
+		);
+		if (!replaced) return;
+		setBufferedBody(proxyRes, replaced);
+		ctx.keyExchange = true;
+	});
+}
+
 hook.request.before = (ctx) => {
 	const { req } = ctx;
 	// 记录请求开始时间和请求头
@@ -141,6 +187,15 @@ hook.request.before = (ctx) => {
 	const url = parse(req.url);
 	// 所有请求都走代理 (不再局限网易云)
 	ctx.decision = 'proxy';
+
+	// 拉公钥的请求单独打一条 info 日志: 用来确认客户端的握手有没有真的走进代理。
+	// (如果客户端某个原生网络栈绕过了代理, 这条日志就不会出现)
+	if (xeapi.isKeyExchangePath(url.path)) {
+		logger.info(
+			{ path: url.path, host: url.hostname, method: req.method },
+			'xeapi: 收到拉公钥请求 (即将在响应里替换公钥)'
+		);
+	}
 
 	if (process.env.NETEASE_COOKIE && url.path.includes('url')) {
 		var cookies = cookieToMap(req.headers.cookie);
@@ -235,90 +290,64 @@ hook.request.before = (ctx) => {
 							netease.e_r = false;
 						}
 						break;
-						case 'xeapi':
-							// 解析 B=...&S=...&R=... 格式 (新 xeapi 协议)
-							const parsedBody = querystring.parse(body);
-							const bField = parsedBody.B;
-							const sField = parsedBody.S;
-							
-							if (!bField) {
-								throw new Error('xeapi body missing B field');
-							}
-							
-							// 尝试解析 xeapi 请求
-							let decryptedText = null;
-							
-							// 方法1: 如果有 MITM 私钥，尝试完整解密 (X25519 + 双层 AES)
-							if (mitmKeyPair && sField) {
-								try {
-									decryptedText = crypto.xeapi.decryptRequest({
-										B: bField,
-										S: sField,
-										privateKey: mitmKeyPair.privateKey,
+						case 'xeapi': {
+							// 新格式: B/C + S + R。S 是加密给「MITM 公钥」的 (握手响应已被换包),
+							// 所以这里能直接解出动态密钥并解开 B/C; 同时要用真实公钥把 S 重新封装再转发上游。
+							const info = xeapi.decryptRequest(body);
+							if (info) {
+								const parsed = xeapi.parsePlaintext(
+									info.plaintext
+								);
+								netease.path = url.pathname;
+								netease.param = parsed.param;
+								netease.query = parsed.query;
+								netease.e_r = true; // xeapi 的响应一定是 eapiKey 加密的
+								netease.xeapi = {
+									os: info.os,
+									format: info.format,
+									keyType: info.keyType,
+									keyVersion: info.version,
+									method: parsed.fields && parsed.fields.method,
+									contentType:
+										parsed.fields &&
+										parsed.fields.contentType,
+								};
+								ctx.xeapiRewrite = xeapi
+									.rewriteRequest(body, info)
+									.then((newBody) => {
+										if (newBody) {
+											req.body = newBody;
+											logger.debug(
+												'xeapi: 已用真实公钥重新封装 S 转发上游'
+											);
+										}
+										return null;
 									});
-								} catch(e) {
-									logger.warn('xeapi MITM decrypt failed (expected if no MITM):', e.message);
-								}
-							}
-							
-							// 方法2: 尝试直接 AES-128-ECB 解密 B 字段 (旧格式兼容)
-							if (!decryptedText) {
-								try {
-									const bodyBuf = Buffer.from(bField, 'base64');
-									decryptedText = crypto.xeapi
-										.decrypt(bodyBuf)
-										.toString();
-								} catch(e) {
-									// 忽略，降级
-								}
-							}
-							
-							// 方法3: URL decode + base64
-							if (!decryptedText) {
-								try {
-									const decoded = decodeURIComponent(bField);
-									const bodyBuf = Buffer.from(decoded, 'base64');
-									decryptedText = crypto.xeapi
-										.decrypt(bodyBuf)
-										.toString();
-								} catch(e) {
-									// 忽略，降级
-								}
-							}
-							
-							if (decryptedText) {
-								data = decryptedText.split('-36cd479b6b5-');
-								netease.path = data[0];
-								netease.param = JSON.parse(data[1]);
-								if (
-									netease.param.hasOwnProperty('e_r') &&
-									(netease.param.e_r == 'true' ||
-										netease.param.e_r == true)
-								) {
-									// eapi's e_r is true, needs to be encrypted
-									netease.e_r = true;
-								} else {
-									netease.e_r = false;
-								}
 							} else {
-								// 无法解密 xeapi，但 URL 上的 query 参数就是请求参数喵！
+								// 解不开 (旧格式, 或客户端持有真实公钥): 至少把 URL query 展示出来
 								netease.path = url.pathname;
 								const queryParams = {};
 								if (url.query) {
-									const searchParams = new URLSearchParams(url.query);
+									const searchParams = new URLSearchParams(
+										url.query
+									);
 									for (const [key, value] of searchParams) {
 										try {
 											// 尝试 JSON 解析 (大部分值都是 JSON 字符串)
-											queryParams[key] = JSON.parse(decodeURIComponent(value));
+											queryParams[key] = JSON.parse(
+												decodeURIComponent(value)
+											);
 										} catch {
 											// 不是 JSON 就用原始值
-											queryParams[key] = decodeURIComponent(value);
+											queryParams[key] =
+												decodeURIComponent(value);
 										}
 									}
 								}
 								netease.param = queryParams;
 							}
-						break;
+							break;
+						}
 						case 'api':
 							data = {};
 							decodeURIComponent(body)
@@ -347,6 +376,8 @@ hook.request.before = (ctx) => {
 					ctx.netease = netease;
 					logger.info({ path: netease.path, params: netease.param }, 'Captured request')
 				}
+				// xeapi: 等 S 用真实公钥重新封装好再转发上游
+				return ctx.xeapiRewrite;
 			})
 			.catch(
 				(error) =>
@@ -389,7 +420,7 @@ hook.request.before = (ctx) => {
 	}
 };
 
-hook.request.after = (ctx) => {
+const captureResponse = (ctx) => {
 	const { req, proxyRes, netease, package: pkg } = ctx;
 
 	if (netease) {
@@ -398,15 +429,11 @@ hook.request.after = (ctx) => {
 		// 捕获响应头
 		const responseHeaders = proxyRes ? { ...proxyRes.headers } : {};
 		delete responseHeaders['transfer-encoding'];
-		
-		return request
-			.read(proxyRes, true)
+
+		return readBody(proxyRes)
 			.then((buffer) => {
-				if (!buffer.length) return Promise.reject();
-				proxyRes.body = buffer;
-				// 🔧 移除 Content-Encoding 头，因为响应体已经被解压
-				delete proxyRes.headers['content-encoding'];
-				return buffer; // 继续传递 buffer
+				if (!buffer || !buffer.length) throw new Error('响应体为空');
+				return buffer; // body 已由 readBody 写回 proxyRes
 			})
 			.then((buffer) => {
 				const patch = (string) =>
@@ -416,9 +443,9 @@ hook.request.after = (ctx) => {
 					); // for js precision
 
 				if (netease.e_r) {
-					// 已知加密: 用 eapiKey 解密 (xeapi/eapi 响应都用 eapiKey)
+					// 已知加密: 用 eapiKey 解密 (xeapi/eapi 响应都用 eapiKey), 明文可能是 gzip
 					netease.jsonBody = JSON.parse(
-						patch(crypto.eapi.decrypt(buffer).toString())
+						patch(crypto.xeapi.decryptResponseText(buffer))
 					);
 				} else {
 					// 未知是否加密: 先尝试直接解析 JSON
@@ -427,7 +454,7 @@ hook.request.after = (ctx) => {
 					} catch(e) {
 						// 不是 JSON? 可能是加密的，尝试 eapi 解密 (xeapi 不解密请求参数时 e_r 未设)
 						try {
-							const decrypted = crypto.eapi.decrypt(buffer).toString();
+							const decrypted = crypto.xeapi.decryptResponseText(buffer);
 							netease.jsonBody = JSON.parse(patch(decrypted));
 							netease.e_r = true; // 标记为已加密
 						} catch(e2) {
@@ -444,6 +471,7 @@ hook.request.after = (ctx) => {
 					rawPath: netease.rawPath || undefined,
 					crypto: netease.crypto || null,
 					param: netease.param,
+					query: netease.query || undefined,
 					response: netease.jsonBody,
 					statusCode: proxyRes.statusCode,
 					method: req.method,
@@ -451,6 +479,8 @@ hook.request.after = (ctx) => {
 					requestHeaders: ctx.requestHeaders,
 					responseHeaders,
 					isNetease: true,
+					// xeapi 额外信息: 格式(BSR/CSR)、平台(PC/移动端)、密钥版本等
+					xeapi: netease.xeapi || undefined,
 				};
 				axios.post(`http://localhost:${process.env.PORT || 3000}/api/capture`, dataToSend)
 					.catch(err => logger.error('Failed to send data to frontend:', err));
@@ -463,6 +493,7 @@ hook.request.after = (ctx) => {
 					rawPath: netease.rawPath || undefined,
 					crypto: netease.crypto || null,
 					param: netease.param,
+					query: netease.query || undefined,
 					response: null,
 					statusCode: proxyRes ? proxyRes.statusCode : null,
 					error: error.message,
@@ -518,10 +549,12 @@ hook.request.after = (ctx) => {
 
 		// 尝试读取响应体 (仅对文本类响应，且大小限制 512KB)
 		const isTextResponse = contentType.includes('json') || contentType.includes('text') || contentType.includes('javascript') || contentType.includes('xml');
-		const contentLength = parseInt(proxyRes && proxyRes.headers['content-length'] || '0', 10);
+		const hasLength = /^\d+$/.test(String((proxyRes && proxyRes.headers['content-length']) || ''));
+		const contentLength = hasLength ? parseInt(proxyRes.headers['content-length'], 10) : -1;
 
-		if (proxyRes && isTextResponse && contentLength < 512 * 1024) {
-			return request.read(proxyRes, true)
+		// 只有长度已知且不大时才缓存: 长度未知 (chunked) 的响应不动它, 直接流式透传
+		if (proxyRes && isTextResponse && hasLength && contentLength < 512 * 1024) {
+			return readBody(proxyRes)
 				.then((buffer) => {
 					if (buffer && buffer.length > 0 && buffer.length < 512 * 1024) {
 						const bodyStr = buffer.toString();
@@ -543,6 +576,17 @@ hook.request.after = (ctx) => {
 				.catch(err => logger.error('Failed to send capture data:', err.message));
 		}
 	}
+};
+
+hook.request.after = (ctx) => {
+	// xeapi 握手: 把响应里的服务器公钥换成我们自己的, 后续请求才解得开
+	if (ctx.proxyRes && xeapi.isKeyExchangePath(parse(ctx.req.url || '').path)) {
+		return interceptKeyState(ctx).then(() => {
+			if (ctx.keyExchange) return null; // 已经改过包, 不再作为普通抓包展示
+			return captureResponse(ctx);
+		});
+	}
+	return captureResponse(ctx);
 };
 
 hook.connect.before = (ctx) => {
@@ -577,23 +621,50 @@ hook.connect.before = (ctx) => {
 			ctx.decision = 'blank';
 		}
 	}
+
+	// 排查用: 看着像网易云的域名却没走 MITM, 说明它不在 hook.target.host 名单里,
+	// 会被透明透传 (抓不到也改不了包)。手机端拉公钥如果走的是陌生域名, 就会命中这里。
+	if (
+		!req.local &&
+		!ctx.decision &&
+		/163|music|netease|orpheus/i.test(`${req.url} ${req.headers.host || ''}`)
+	) {
+		logger.info(
+			{ target: req.url, host: req.headers.host },
+			'未走 MITM (透明透传): 该域名不在抓包名单里'
+		);
+	}
 };
 
 hook.negotiate.before = (ctx) => {
 	const { req, socket, decision } = ctx;
-	const url = parse('https://' + req.url);
-	const target = hook.target.host;
 	if (req.local || decision) return;
-	// 完整抓包: 非网易云域名直接 MITM (sni 域名自动加入 target set)
-	if (isFullCapture() && socket.sni && !target.has(socket.sni)) {
-		target.add(socket.sni);
-		ctx.decision = 'blank';
-		return;
+	const name = socket.sni;
+	if (!name) return;
+
+	// 客户端可能按 IP 直连过来 (App 用 HTTPDNS 自己解析, CONNECT 目标就是 IP),
+	// 那样 connect.before 匹配不到域名, 已经连到真实服务器上了。
+	// 但 TLS 的 SNI 仍然是真实域名, 而且客户端的首包 (ClientHello) 还压在我们手里没发出去,
+	// 所以这里直接断掉直连、改接到本地 MITM 端口, 对客户端完全无感。
+	const isTarget = hook.target.host.has(name) || isFullCapture();
+	if (!isTarget || !global.port || !global.port[1]) return;
+
+	if (ctx.proxySocket) {
+		ctx.proxySocket.destroy();
+		ctx.proxySocket = null;
 	}
-	if (target.has(socket.sni) && !target.has(url.hostname)) {
-		target.add(url.hostname);
-		ctx.decision = 'blank';
-	}
+	req.url = `${global.address || 'localhost'}:${global.port[1]}`;
+	req.local = true;
+	logger.info(
+		{ sni: name, connect: req.headers.host },
+		'xeapi: 客户端按 IP 连接, 依据 SNI 改接本地 MITM'
+	);
+	return new Promise((resolve, reject) => {
+		const localSocket = net
+			.connect(global.port[1], global.address || 'localhost')
+			.on('connect', () => resolve((ctx.proxySocket = localSocket)))
+			.on('error', (error) => reject((ctx.error = error)));
+	});
 };
 
 module.exports = hook;
